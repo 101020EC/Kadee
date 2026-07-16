@@ -291,7 +291,8 @@ header p {
     padding-left: 2px;
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
     background-color: var(--input-bg);
     border: 1px solid var(--input-border);
     border-radius: 10px;
@@ -302,6 +303,7 @@ header p {
     transition: all 0.25s ease;
 }
 
+.form-group select:focus,
 .form-group input:focus {
     outline: none;
     border-color: var(--input-focus);

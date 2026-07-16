@@ -179,9 +179,10 @@ export async function POST(request) {
       data.vehicle_plate = cleanedPlate;
       data.vehicle_brand = lines[vehicleIdx + 13];
       
-      // Clean type
+      // Clean type — จำกัดเหลือ 2 ประเภทตามตัวเลือกในฟอร์ม
       const rawType = lines[vehicleIdx + 18];
-      data.vehicle_type = rawType.includes("รถยนต์") ? "รถยนต์" : rawType;
+      data.vehicle_type = rawType.includes("จักรยานยนต์") ? "รถจักรยานยนต์"
+        : rawType.includes("รถยนต์") ? "รถยนต์" : "";
     } else {
       data.vehicle_plate = "";
       data.vehicle_brand = "";
