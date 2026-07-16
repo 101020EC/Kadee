@@ -524,6 +524,12 @@ header p {
     padding: 0 1.8rem 1.8rem 1.8rem;
 }
 
+/* ช่องกรอกในแผงตั้งค่าต้องกว้างพอให้เห็นข้อความเต็ม (ยาวสุดคือ "ผู้อำนวยการส่วนบริการศุลกากร" ~197px)
+   auto-fit ยุบเหลือคอลัมน์เดียวเองเมื่อการ์ดแคบ โดยดูจากความกว้างการ์ดจริง ไม่ใช่ขนาดจอ */
+.config-body .grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
 .config-body-title {
     font-size: 0.95rem;
     font-weight: 700;
@@ -574,9 +580,10 @@ body.hero-bg {
 
 body.hero-bg .container {
     display: grid;
-    /* minmax(0, …) กันไม่ให้ความกว้างคอลัมน์ขึ้นกับเนื้อหาข้างใน
+    /* คอลัมน์ขวา (แถบเมนู + การ์ด) กว้างกว่าซ้าย เพื่อให้ช่องกรอกในแผงตั้งค่าแสดงครบ
+       minmax(0, …) กันไม่ให้ความกว้างคอลัมน์ขึ้นกับเนื้อหาข้างใน
        ไม่งั้นแถบเมนูจะถ่างออกตอนเปิดแผงตั้งค่า */
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
     gap: 4.5rem;
     align-items: flex-start; /* Left elements anchored to the top */
     max-width: 1180px;
@@ -641,6 +648,15 @@ body.hero-bg .card.upload-card {
     background: linear-gradient(135deg, #14121d 30%, #7b2cbf 100%) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
+}
+
+/* เดสก์ท็อปจอแคบ (ช่วงที่ยังเป็น 2 คอลัมน์): ย่อหัวข้อตามความกว้างจอ
+   เพราะ nowrap ที่ 5.2rem กว้างตายตัว 465px จะกินที่คอลัมน์ซ้ายจนการ์ดฝั่งขวาแคบ
+   ที่ 1224px ขึ้นไป 6.8vw = 83.2px = 5.2rem พอดี จึงต่อกับค่าปกติแบบไร้รอยต่อ */
+@media (min-width: 992px) and (max-width: 1224px) {
+    .hero-title {
+        font-size: 6.8vw;
+    }
 }
 
 .hero-desc {
