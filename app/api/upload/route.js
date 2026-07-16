@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-import path from 'path';
 
-// Set worker source path to resolve Next.js runtime bundling issue
-pdfjs.GlobalWorkerOptions.workerSrc = path.resolve('node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
+// In Node.js/Vercel serverless runtime, PDFJS runs in fake-worker mode natively.
+// We do not set workerSrc to avoid file path resolution errors on the cloud.
 
 function convertToThaiDate(dateStr) {
   if (!dateStr) return "";
