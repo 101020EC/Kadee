@@ -76,7 +76,8 @@ export async function POST(request) {
     return new Response(outBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="${filename}"`
+        // RFC 5987 encoding — HTTP headers reject non-Latin1 chars (e.g. Thai case numbers)
+        'Content-Disposition': `attachment; filename="output.docx"; filename*=UTF-8''${encodeURIComponent(filename)}`
       }
     });
     

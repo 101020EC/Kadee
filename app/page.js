@@ -14,9 +14,6 @@ export default function Home() {
   const [showConfig, setShowConfig] = useState(false);
   
   // Persistent Settings
-  const [templateUrlViolation, setTemplateUrlViolation] = useState(DEFAULT_URL_VIOLATION);
-  const [templateUrlVis, setTemplateUrlVis] = useState(DEFAULT_URL_VIS);
-  const [templateUrlThaiVehicle, setTemplateUrlThaiVehicle] = useState(DEFAULT_URL_THAI_VEHICLE);
   const [proposerName, setProposerName] = useState('');
   const [proposerPosition, setProposerPosition] = useState('นักวิชาการศุลกากรชำนาญการ');
   const [approverSelection, setApproverSelection] = useState('approver_1'); // 'approver_1' | 'approver_2'
@@ -56,14 +53,10 @@ export default function Home() {
 
   // Load saved settings from localStorage on mount
   useEffect(() => {
-    const savedUrlViolation = localStorage.getItem('template_url_violation');
-    if (savedUrlViolation) setTemplateUrlViolation(savedUrlViolation);
-    
-    const savedUrlVis = localStorage.getItem('template_url_vis');
-    if (savedUrlVis) setTemplateUrlVis(savedUrlVis);
-    
-    const savedUrlThai = localStorage.getItem('template_url_thai_vehicle');
-    if (savedUrlThai) setTemplateUrlThaiVehicle(savedUrlThai);
+    // Clear template URLs saved by older versions — templates are now fixed in code
+    localStorage.removeItem('template_url_violation');
+    localStorage.removeItem('template_url_vis');
+    localStorage.removeItem('template_url_thai_vehicle');
 
     const savedPropName = localStorage.getItem('proposer_name');
     if (savedPropName !== null) setProposerName(savedPropName);
@@ -112,21 +105,6 @@ export default function Home() {
   const handleApp2NameChange = (e) => {
     setApprover2Name(e.target.value);
     localStorage.setItem('approver_2_name', e.target.value);
-  };
-
-  const handleTemplateUrlViolationChange = (e) => {
-    setTemplateUrlViolation(e.target.value);
-    localStorage.setItem('template_url_violation', e.target.value);
-  };
-
-  const handleTemplateUrlVisChange = (e) => {
-    setTemplateUrlVis(e.target.value);
-    localStorage.setItem('template_url_vis', e.target.value);
-  };
-
-  const handleTemplateUrlThaiVehicleChange = (e) => {
-    setTemplateUrlThaiVehicle(e.target.value);
-    localStorage.setItem('template_url_thai_vehicle', e.target.value);
   };
 
   // Drag and drop handlers
@@ -268,9 +246,9 @@ export default function Home() {
       return;
     }
 
-    let activeTemplateUrl = templateUrlViolation;
-    if (activeSystem === 'vis') activeTemplateUrl = templateUrlVis;
-    else if (activeSystem === 'thai_vehicle') activeTemplateUrl = templateUrlThaiVehicle;
+    let activeTemplateUrl = DEFAULT_URL_VIOLATION;
+    if (activeSystem === 'vis') activeTemplateUrl = DEFAULT_URL_VIS;
+    else if (activeSystem === 'thai_vehicle') activeTemplateUrl = DEFAULT_URL_THAI_VEHICLE;
 
     try {
       // Calculate fine_days_p2 dynamically based on final fine_days value (for VIS)
@@ -503,59 +481,12 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Cloud Template settings */}
-                  <h4 style={{ fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.8rem', fontWeight: '700' }}>
-                    <i className="fa-solid fa-cloud" style={{ marginRight: '6px' }}></i> ลิงก์เทมเพลต Word (.docx) บน Supabase Storage
-                  </h4>
-                  <div className="form-group" style={{ marginBottom: '1rem' }}>
-                    {activeSystem === 'violation' ? (
-                      <>
-                        <label htmlFor="template_url_viol">Supabase Template URL (ระบบ MY ผิดพิธีการ):</label>
-                        <input 
-                          type="url" 
-                          id="template_url_viol" 
-                          value={templateUrlViolation}
-                          onChange={handleTemplateUrlViolationChange}
-                          placeholder={DEFAULT_URL_VIOLATION}
-                        />
-                      </>
-                    ) : activeSystem === 'vis' ? (
-                      <>
-                        <label htmlFor="template_url_vis_field">Supabase Template URL (ระบบ MY VIS):</label>
-                        <input 
-                          type="url" 
-                          id="template_url_vis_field" 
-                          value={templateUrlVis}
-                          onChange={handleTemplateUrlVisChange}
-                          placeholder={DEFAULT_URL_VIS}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <label htmlFor="template_url_thai_field">Supabase Template URL (ระบบรถไทย):</label>
-                        <input 
-                          type="url" 
-                          id="template_url_thai_field" 
-                          value={templateUrlThaiVehicle}
-                          onChange={handleTemplateUrlThaiVehicleChange}
-                          placeholder={DEFAULT_URL_THAI_VEHICLE}
-                        />
-                      </>
-                    )}
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      * แก้ไขและเซฟลิงก์นี้ไว้ได้จนกว่าจะเปลี่ยนแปลง ระบบจะดึงเทมเพลตนี้มาสร้างเอกสารโดยตรง
-                    </span>
-                  </div>
-
                   {/* Save Settings Button */}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '1rem' }}>
                     <button 
                       type="button" 
                       className="btn-select" 
                       onClick={() => {
-                        localStorage.setItem('template_url_violation', templateUrlViolation);
-                        localStorage.setItem('template_url_vis', templateUrlVis);
-                        localStorage.setItem('template_url_thai_vehicle', templateUrlThaiVehicle);
                         localStorage.setItem('proposer_name', proposerName);
                         localStorage.setItem('proposer_position', proposerPosition);
                         localStorage.setItem('approver_selection', approverSelection);
