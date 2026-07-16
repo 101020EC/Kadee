@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { PDFParse } from 'pdf-parse';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import path from 'path';
 
@@ -67,12 +66,43 @@ export async function POST(request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    // Parse PDF text using the new PDFParse API
-    const parser = new PDFParse({ data: buffer });
-    const pdfData = await parser.getText();
-    const text = pdfData.text;
+    // Parse PDF text directly using pdfjs-dist (avoiding pdf-parse canvas native binary issues on Vercel)
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      useSystemArr: true,
+      disableFontFace: true,
+      isEvalSupported: false
+    });
     
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const pdfDoc = await loadingTask.promise;
+    let text = "";
+    let lines = [];
+    
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const textContent = await page.getTextContent();
+      
+      let lastY = null;
+      let currentLine = "";
+      for (const item of textContent.items) {
+        if (!item.str || item.str.trim() === "") continue;
+        const y = item.transform[5];
+        if (lastY !== null && Math.abs(y - lastY) > 5) {
+          lines.push(currentLine.trim());
+          currentLine = "";
+        }
+        currentLine += item.str + " ";
+        lastY = y;
+      }
+      if (currentLine.trim()) {
+        lines.push(currentLine.trim());
+      }
+      
+      // Keep a joined text fallback for global regex matches
+      const pageText = textContent.items.map(item => item.str).join(" ");
+      text += pageText + "\n";
+    }
+    
     const data = {};
     
     // 1. Customs Office (Discharge Office)
