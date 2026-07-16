@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useState, useEffect } from 'react';
 
 const DEFAULT_URL_VIOLATION = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/MY.docx';
@@ -95,6 +97,22 @@ export default function Home() {
   const [approver1Name, setApprover1Name] = useState('นายวรวุฒิ สุภชัยพานิชพงศ์');
   const [approver2Name, setApprover2Name] = useState('นางสาวปิลันธนา ไตรทิพพิสมัย');
 
+  // VIS-specific Officer Settings
+  const [visLegalName, setVisLegalName] = useState('นายสุทิน ภูเดช');
+  const [visLegalPosition, setVisLegalPosition] = useState('นิติกรชำนาญการ');
+  const [visChiefName, setVisChiefName] = useState('นายหะริน หอวัง');
+  const [visChiefPosition, setVisChiefPosition] = useState('นายด่านศุลกากรปาดังเบซาร์');
+  const [visHeadServiceName, setVisHeadServiceName] = useState('นายพิภพ พุทธสุข');
+  const [visHeadServicePosition, setVisHeadServicePosition] = useState('หัวหน้าฝ่ายบริการศุลกากรที่ 2');
+  const [visDirectorName, setVisDirectorName] = useState('นายพิภพ พุทธสุข');
+  const [visDirectorPosition, setVisDirectorPosition] = useState('ผู้อำนวยการส่วนบริการศุลกากร');
+
+  // Template Manager Admin Auth
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [verifiedPassword, setVerifiedPassword] = useState('');
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [replacingType, setReplacingType] = useState(null);
+
   // Form fields
   const [formData, setFormData] = useState(INITIAL_FORM);
 
@@ -124,7 +142,84 @@ export default function Home() {
     
     const savedApp2Name = localStorage.getItem('approver_2_name');
     if (savedApp2Name) setApprover2Name(savedApp2Name);
+
+    // VIS persistent settings
+    const savedVisLegalName = localStorage.getItem('vis_legal_name');
+    if (savedVisLegalName !== null) setVisLegalName(savedVisLegalName);
+    const savedVisLegalPos = localStorage.getItem('vis_legal_position');
+    if (savedVisLegalPos) setVisLegalPosition(savedVisLegalPos);
+
+    const savedVisChiefName = localStorage.getItem('vis_chief_name');
+    if (savedVisChiefName !== null) setVisChiefName(savedVisChiefName);
+    const savedVisChiefPos = localStorage.getItem('vis_chief_position');
+    if (savedVisChiefPos) setVisChiefPosition(savedVisChiefPos);
+
+    const savedVisHeadName = localStorage.getItem('vis_head_service_name');
+    if (savedVisHeadName !== null) setVisHeadServiceName(savedVisHeadName);
+    const savedVisHeadPos = localStorage.getItem('vis_head_service_position');
+    if (savedVisHeadPos) setVisHeadServicePosition(savedVisHeadPos);
+
+    const savedVisDirName = localStorage.getItem('vis_director_name');
+    if (savedVisDirName !== null) setVisDirectorName(savedVisDirName);
+    const savedVisDirPos = localStorage.getItem('vis_director_position');
+    if (savedVisDirPos) setVisDirectorPosition(savedVisDirPos);
   }, []);
+
+  const handleVerifyAdminPassword = async () => {
+    try {
+      const response = await fetch('/api/templates/verify-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPasswordInput })
+      });
+      if (response.ok) {
+        setIsAdminAuthenticated(true);
+        setVerifiedPassword(adminPasswordInput);
+        setAdminPasswordInput('');
+        showToast('เข้าสู่ระบบผู้ดูแลระบบเทมเพลตสำเร็จ!');
+      } else {
+        const data = await response.json();
+        showToast(data.error || 'รหัสผ่านไม่ถูกต้อง');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('เกิดข้อผิดพลาดในการตรวจสอบรหัสผ่าน');
+    }
+  };
+
+  const handleReplaceTemplate = async (type, fileSelected) => {
+    if (!fileSelected) return;
+
+    if (!fileSelected.name.endsWith('.docx')) {
+      showToast('กรุณากรอกไฟล์นามสกุล .docx เท่านั้น');
+      return;
+    }
+
+    setReplacingType(type);
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', fileSelected);
+    formDataUpload.append('type', type);
+    formDataUpload.append('password', verifiedPassword);
+
+    try {
+      const response = await fetch('/api/templates/upload', {
+        method: 'POST',
+        body: formDataUpload
+      });
+
+      if (response.ok) {
+        showToast('อัปเดตเทมเพลตและเขียนทับเรียบร้อยแล้ว!');
+      } else {
+        const errData = await response.json();
+        showToast(errData.error || 'ไม่สามารถเขียนทับเทมเพลตได้');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('เกิดข้อผิดพลาดขณะอัปเดตเทมเพลต');
+    } finally {
+      setReplacingType(null);
+    }
+  };
 
   const showToast = (message) => {
     setToast({ show: true, message });
@@ -355,6 +450,14 @@ export default function Home() {
 
       const payload = {
         ...data,
+        vis_legal_name: visLegalName,
+        vis_legal_position: visLegalPosition,
+        vis_chief_name: visChiefName,
+        vis_chief_position: visChiefPosition,
+        vis_head_service_name: visHeadServiceName,
+        vis_head_service_position: visHeadServicePosition,
+        vis_director_name: visDirectorName,
+        vis_director_position: visDirectorPosition,
         fine_days_p2: fineDaysP2,
         template_url: activeTemplateUrl
       };
@@ -624,6 +727,245 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* VIS-specific roles settings */}
+                  <h4 style={{ fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.8rem', marginTop: '1.5rem', fontWeight: '700' }}>
+                    <i className="fa-solid fa-users-gear" style={{ marginRight: '6px' }}></i> ข้อมูลเจ้าหน้าที่ระบบ MY VIS (กำหนดและแก้ไขได้)
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="grid-2">
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ชื่อนิติกร:</label>
+                        <input 
+                          type="text" 
+                          value={visLegalName} 
+                          onChange={e => setVisLegalName(e.target.value)} 
+                          placeholder="เช่น นายสุทิน ภูเดช"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ตำแหน่งนิติกร:</label>
+                        <input 
+                          type="text" 
+                          value={visLegalPosition} 
+                          onChange={e => setVisLegalPosition(e.target.value)} 
+                          placeholder="เช่น นิติกรชำนาญการ"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid-2">
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ชื่อนายด่าน:</label>
+                        <input 
+                          type="text" 
+                          value={visChiefName} 
+                          onChange={e => setVisChiefName(e.target.value)} 
+                          placeholder="เช่น นายหะริน หอวัง"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ตำแหน่งนายด่าน:</label>
+                        <input 
+                          type="text" 
+                          value={visChiefPosition} 
+                          onChange={e => setVisChiefPosition(e.target.value)} 
+                          placeholder="เช่น นายด่านศุลกากรปาดังเบซาร์"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid-2">
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ชื่อหัวหน้าฝ่ายบริการฯ 2:</label>
+                        <input 
+                          type="text" 
+                          value={visHeadServiceName} 
+                          onChange={e => setVisHeadServiceName(e.target.value)} 
+                          placeholder="เช่น นายพิภพ พุทธสุข"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ตำแหน่งหัวหน้าฝ่ายบริการฯ 2:</label>
+                        <input 
+                          type="text" 
+                          value={visHeadServicePosition} 
+                          onChange={e => setVisHeadServicePosition(e.target.value)} 
+                          placeholder="เช่น หัวหน้าฝ่ายบริการศุลกากรที่ 2"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid-2">
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ชื่อผู้อำนวยการส่วนบริการ:</label>
+                        <input 
+                          type="text" 
+                          value={visDirectorName} 
+                          onChange={e => setVisDirectorName(e.target.value)} 
+                          placeholder="เช่น นายพิภพ พุทธสุข"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ตำแหน่งผู้อำนวยการส่วนบริการ:</label>
+                        <input 
+                          type="text" 
+                          value={visDirectorPosition} 
+                          onChange={e => setVisDirectorPosition(e.target.value)} 
+                          placeholder="เช่น ผู้อำนวยการส่วนบริการศุลกากร"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Template Management Section */}
+                  <h4 style={{ fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.8rem', marginTop: '2rem', fontWeight: '700', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '1.5rem' }}>
+                    <i className="fa-solid fa-file-word" style={{ marginRight: '6px' }}></i> จัดการแม่แบบเอกสาร (Template Management)
+                  </h4>
+
+                  {!isAdminAuthenticated ? (
+                    <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'flex-end', background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                      <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>กรอกรหัสผ่านเพื่อเข้าสู่โหมดผู้ดูแลระบบ:</label>
+                        <input 
+                          type="password" 
+                          value={adminPasswordInput}
+                          onChange={e => setAdminPasswordInput(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleVerifyAdminPassword(); }}
+                          placeholder="รหัสผ่านผู้ดูแลระบบ"
+                          style={{ padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}
+                        />
+                      </div>
+                      <button 
+                        type="button" 
+                        className="btn-select"
+                        onClick={handleVerifyAdminPassword}
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.85rem', height: '38px', whiteSpace: 'nowrap' }}
+                      >
+                        <i className="fa-solid fa-key" style={{ marginRight: '6px' }}></i> ยืนยัน
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(0,0,0,0.02)', padding: '1.2rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: '700' }}>
+                          <i className="fa-solid fa-lock-open" style={{ marginRight: '6px' }}></i> โหมดผู้ดูแลระบบสำเร็จ
+                        </span>
+                        <button 
+                          type="button" 
+                          onClick={() => { setIsAdminAuthenticated(false); setVerifiedPassword(''); }}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          ออกจากระบบผู้ดูแล
+                        </button>
+                      </div>
+
+                      {/* Thai Vehicle Template Form */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>1. แม่แบบรถไทย (PTK.docx)</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>แม่แบบบันทึกข้อความสำหรับรถยนต์สัญชาติไทย</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                          <a 
+                            href="/api/templates/download?type=thai_vehicle"
+                            className="btn-select"
+                            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(123, 44, 191, 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
+                          >
+                            <i className="fa-solid fa-download" style={{ marginRight: '4px' }}></i> Download
+                          </a>
+                          <label 
+                            className="btn-select"
+                            style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                          >
+                            <i className="fa-solid fa-upload" style={{ marginRight: '4px' }}></i> Replace
+                            <input 
+                              type="file" 
+                              accept=".docx"
+                              onChange={e => handleReplaceTemplate('thai_vehicle', e.target.files[0])}
+                              style={{ display: 'none' }}
+                              disabled={replacingType !== null}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* MY Violation Template Form */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>2. แม่แบบมาเลเซีย ผิดพิธีการ (MY.docx)</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>แม่แบบบันทึกข้อความกรณีนำรถมาเลเซียออกเกินกำหนด (ผิดพิธีการ)</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                          <a 
+                            href="/api/templates/download?type=violation"
+                            className="btn-select"
+                            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(123, 44, 191, 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
+                          >
+                            <i className="fa-solid fa-download" style={{ marginRight: '4px' }}></i> Download
+                          </a>
+                          <label 
+                            className="btn-select"
+                            style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                          >
+                            <i className="fa-solid fa-upload" style={{ marginRight: '4px' }}></i> Replace
+                            <input 
+                              type="file" 
+                              accept=".docx"
+                              onChange={e => handleReplaceTemplate('violation', e.target.files[0])}
+                              style={{ display: 'none' }}
+                              disabled={replacingType !== null}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* MY VIS Template Form */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 0' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>3. แม่แบบมาเลเซีย VIS (VIS.docx)</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>แม่แบบบันทึกข้อความกรณีนำรถมาเลเซียออกเกินกำหนด (ระบบ VIS)</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                          <a 
+                            href="/api/templates/download?type=vis"
+                            className="btn-select"
+                            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(123, 44, 191, 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
+                          >
+                            <i className="fa-solid fa-download" style={{ marginRight: '4px' }}></i> Download
+                          </a>
+                          <label 
+                            className="btn-select"
+                            style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                          >
+                            <i className="fa-solid fa-upload" style={{ marginRight: '4px' }}></i> Replace
+                            <input 
+                              type="file" 
+                              accept=".docx"
+                              onChange={e => handleReplaceTemplate('vis', e.target.files[0])}
+                              style={{ display: 'none' }}
+                              disabled={replacingType !== null}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {replacingType && (
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }}></div>
+                          <span>กำลังอัปเดตไฟล์แม่แบบระบบ {replacingType}...</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Save Settings Button */}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '1rem' }}>
                     <button 
@@ -636,6 +978,16 @@ export default function Home() {
                         localStorage.setItem('approver_1_name', approver1Name);
                         localStorage.setItem('approver_2_name', approver2Name);
                         
+                        // Save VIS specific settings
+                        localStorage.setItem('vis_legal_name', visLegalName);
+                        localStorage.setItem('vis_legal_position', visLegalPosition);
+                        localStorage.setItem('vis_chief_name', visChiefName);
+                        localStorage.setItem('vis_chief_position', visChiefPosition);
+                        localStorage.setItem('vis_head_service_name', visHeadServiceName);
+                        localStorage.setItem('vis_head_service_position', visHeadServicePosition);
+                        localStorage.setItem('vis_director_name', visDirectorName);
+                        localStorage.setItem('vis_director_position', visDirectorPosition);
+
                         showToast('บันทึกการตั้งค่าเรียบร้อยแล้ว!');
                         setShowConfig(false);
                       }}

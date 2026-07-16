@@ -28,8 +28,11 @@ export async function POST(request) {
     } else {
       console.log(`Fetching template from: ${templateUrl}`);
       try {
-        // Fetch the Word template file from Supabase Storage
-        const response = await fetch(templateUrl);
+        // Fetch the Word template file from Supabase Storage (bypassing CDN cache using a timestamp query param)
+        const fetchUrl = templateUrl.includes('supabase.co') 
+          ? `${templateUrl}?t=${Date.now()}` 
+          : templateUrl;
+        const response = await fetch(fetchUrl, { cache: 'no-store' });
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer();
           templateBuffer = Buffer.from(arrayBuffer);
