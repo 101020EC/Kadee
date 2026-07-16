@@ -564,7 +564,7 @@ export default function Home() {
 
       <header>
         <h1>{activeSystem === 'violation' ? 'MY ผิดพิธีการ' : activeSystem === 'vis' ? 'MY VIS' : 'รถไทย'}</h1>
-        <p>ระบบกรอกบันทึกข้อความศุลกากรอัตโนมัติด้วยไฟล์ PDF ใบขนสินค้าพิเศษ</p>
+        <p>PDF to บันทึก</p>
       </header>
 
       {/* Tabs bar */}
