@@ -97,7 +97,6 @@ export async function POST(request) {
     // Parse PDF text directly using pdfjs-dist
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(buffer),
-      useSystemArr: true,
       disableFontFace: true,
       isEvalSupported: false
     });
@@ -225,13 +224,10 @@ export async function POST(request) {
     } else {
       data.receipt_number = "";
       data.fine_amount = "";
-      
-      // Fallback return date for first system
-      if (data.doc_date === "18/06/2026" && data.import_date === "18/05/2026") {
-        data.return_date = "11/06/2026";
-      } else {
-        data.return_date = data.doc_date;
-      }
+
+      // ไม่มีใบเสร็จใน PDF จึงไม่รู้วันที่นำยานพาหนะออกไปจริง
+      // ตั้งวันที่ตัดบัญชีเป็นค่าเริ่มต้นไว้ก่อน ผู้ใช้ยืนยัน/แก้ไขได้ใน popup ก่อนสร้างเอกสาร
+      data.return_date = data.doc_date;
     }
     
     // 8. Thai Dates

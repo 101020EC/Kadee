@@ -16,7 +16,15 @@ export async function POST(request) {
     const type = formData.get('type');
 
     // 1. Authenticate
-    const adminPassword = process.env.TEMPLATE_ADMIN_PASSWORD || 'admin1234';
+    // ไม่มีรหัสสำรองในโค้ด: ถ้ายังไม่ตั้ง env ให้ปฏิเสธไปเลย ดีกว่าเปิดให้เขียนทับเทมเพลตได้เงียบๆ
+    const adminPassword = process.env.TEMPLATE_ADMIN_PASSWORD;
+    if (!adminPassword) {
+      console.error('TEMPLATE_ADMIN_PASSWORD is not set — template replacement is disabled');
+      return NextResponse.json(
+        { error: 'ระบบยังไม่ได้ตั้งค่ารหัสผ่านผู้ดูแล กรุณาติดต่อผู้ดูแลระบบ' },
+        { status: 503 }
+      );
+    }
     if (password !== adminPassword) {
       return NextResponse.json({ error: 'รหัสผ่านไม่ถูกต้อง' }, { status: 401 });
     }

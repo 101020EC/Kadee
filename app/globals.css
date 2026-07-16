@@ -27,6 +27,10 @@
 html {
     overflow-x: hidden;
     width: 100%;
+    /* บังคับแถบเลื่อนแนวตั้งไว้เสมอ ไม่งั้นพอเปิดแผงตั้งค่าแล้วหน้ายาวขึ้น
+       แถบเลื่อนจะโผล่มากินความกว้างจนเนื้อหาขยับไปทางซ้าย
+       (scrollbar-gutter ใช้ไม่ได้ที่นี่ เพราะ overflow-x: hidden ทำให้ html ไม่เป็น scroll container) */
+    overflow-y: scroll;
 }
 
 body {
@@ -65,7 +69,8 @@ body {
 
 /* Ambient Background Glows */
 .ambient-glow {
-    position: absolute;
+    /* fixed ไม่นับรวมในความกว้างเอกสาร วงแสงจึงไม่สร้างพื้นที่เลื่อนแนวนอนเกินจอ */
+    position: fixed;
     width: 600px;
     height: 600px;
     border-radius: 50%;
@@ -560,15 +565,18 @@ body.hero-bg {
                 url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
     background-size: cover;
     color: #14121d; /* Dark charcoal text for light theme */
-    align-items: flex-start; /* Fixed at the top so it doesn't move when card grows */
-    justify-content: center;
+    align-items: flex-start;
+    /* ยึดขอบบน: ถ้าใช้ center เนื้อหาจะถูกดันขึ้นทุกครั้งที่การ์ดสูงขึ้น (เช่นตอนเปิดตั้งค่า) */
+    justify-content: flex-start;
     min-height: 100vh;
     padding-top: 2rem;
 }
 
 body.hero-bg .container {
     display: grid;
-    grid-template-columns: 1.15fr 1fr;
+    /* minmax(0, …) กันไม่ให้ความกว้างคอลัมน์ขึ้นกับเนื้อหาข้างใน
+       ไม่งั้นแถบเมนูจะถ่างออกตอนเปิดแผงตั้งค่า */
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     gap: 4.5rem;
     align-items: flex-start; /* Left elements anchored to the top */
     max-width: 1180px;
