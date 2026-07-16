@@ -541,55 +541,6 @@ header p {
 }
 
 /* ==========================================================================
-   Hero Split Layout for First Page (Upload State)
-   ========================================================================== */
-body.hero-bg {
-    background: linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.55)), 
-                url('https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
-    background-size: cover;
-    color: #ffffff;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-}
-
-body.hero-bg .container {
-    display: grid;
-    grid-template-columns: 1.15fr 1fr;
-    gap: 4.5rem;
-    align-items: center;
-    max-width: 1180px;
-    padding: 0 1.5rem;
-    margin: 0 auto;
-}
-
-body.hero-bg header {
-    grid-column: 1;
-    grid-row: 1 / 3;
-    text-align: left;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-body.hero-bg .system-tabs {
-    grid-column: 2;
-    grid-row: 1;
-    width: 100%;
-    margin-bottom: 0.8rem; /* Pushes the card further up */
-    background: rgba(123, 44, 191, 0.05);
-    border: 1px solid rgba(123, 44, 191, 0.12);
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03);
-}
-
-body.hero-bg .card.upload-card {
-    grid-column: 2;
-    grid-row: 2;
-    margin-top: 0;
-}
-
-/* ==========================================================================
    Hero Split Layout for First Page (Upload State - Light Art Theme)
    ========================================================================== */
 body.hero-bg {
@@ -597,18 +548,19 @@ body.hero-bg {
                 url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
     background-size: cover;
     color: #14121d; /* Dark charcoal text for light theme */
-    align-items: center;
+    align-items: flex-start; /* Fixed at the top so it doesn't move when card grows */
     justify-content: center;
     min-height: 100vh;
+    padding-top: 5rem;
 }
 
 body.hero-bg .container {
     display: grid;
     grid-template-columns: 1.15fr 1fr;
     gap: 4.5rem;
-    align-items: center;
+    align-items: flex-start; /* Left elements anchored to the top */
     max-width: 1180px;
-    padding: 0 1.5rem;
+    padding: 2rem 1.5rem 0 1.5rem;
     margin: 0 auto;
 }
 
@@ -620,6 +572,23 @@ body.hero-bg header {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    padding-top: 1.5rem; /* Anchor at top */
+}
+
+body.hero-bg .system-tabs {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    margin-bottom: 0.8rem; /* Pushes the card further up */
+    background: rgba(242, 239, 250, 0.98); /* Less transparent solid background for readability */
+    border: 1px solid rgba(123, 44, 191, 0.15);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+body.hero-bg .card.upload-card {
+    grid-column: 2;
+    grid-row: 2;
+    margin-top: 0;
 }
 
 /* Left Hero Column Elements */
@@ -666,8 +635,8 @@ body.hero-bg header {
 
 /* Light Glassmorphic Upload Card */
 .card.upload-card {
-    background: rgba(255, 255, 255, 0.78);
-    border: 1px solid rgba(123, 44, 191, 0.1);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(123, 44, 191, 0.12);
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
     box-shadow: 0 35px 70px rgba(90, 80, 140, 0.08);
@@ -676,24 +645,25 @@ body.hero-bg header {
 }
 
 .card.upload-card .system-tabs {
-    background: rgba(123, 44, 191, 0.05);
-    border: 1px solid rgba(123, 44, 191, 0.1);
+    background: rgba(242, 239, 250, 0.98); /* Less transparent solid background for readability */
+    border: 1px solid rgba(123, 44, 191, 0.15);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03);
     margin-bottom: 1rem;
 }
 
 .card.upload-card .tab-btn {
-    color: #646273;
+    color: #3a3845; /* Darker text for inactive tabs to improve readability */
     font-weight: 700;
     flex: 1;
     justify-content: center;
-    padding: 0.7rem 1rem;
-    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    font-size: 1.05rem; /* Increased font size as requested */
+    transition: all 0.2s ease;
 }
 
 .card.upload-card .tab-btn:hover {
     color: #14121d;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.7);
 }
 
 .card.upload-card .tab-btn.active {
@@ -814,13 +784,17 @@ body.hero-bg header {
     margin: 1.2rem 0 0.3rem 0;
 }
 
-/* Responsive Grid reset */
+/* Responsive Grid & Mobile-Safety */
 @media (max-width: 991px) {
+    body.hero-bg {
+        padding-top: 2rem;
+    }
+
     body.hero-bg .container {
         grid-template-columns: 1fr;
-        gap: 3rem;
+        gap: 2.5rem;
         max-width: 600px;
-        padding-top: 2rem;
+        padding-top: 0;
         padding-bottom: 2rem;
     }
 
@@ -829,6 +803,7 @@ body.hero-bg header {
         grid-row: auto;
         align-items: center;
         text-align: center;
+        padding-top: 0;
     }
 
     body.hero-bg header h1 {
@@ -849,6 +824,36 @@ body.hero-bg header {
     body.hero-bg .card.upload-card {
         grid-column: auto;
         grid-row: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Prevent title overflow and horizontal scroll */
+    .hero-title {
+        font-size: 3rem !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
+        text-align: center !important;
+    }
+
+    .hero-desc {
+        text-align: center !important;
+        font-size: 0.95rem !important;
+    }
+
+    body.hero-bg .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    /* Prevent tabs overflow on small mobile screens */
+    .card.upload-card .tab-btn {
+        font-size: 0.82rem !important;
+        padding: 0.6rem 0.3rem !important;
+    }
+    
+    .card.upload-card {
+        padding: 1.2rem 1rem;
     }
 }
 

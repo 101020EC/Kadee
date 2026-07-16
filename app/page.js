@@ -2,7 +2,7 @@
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const DEFAULT_URL_VIOLATION = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/MY.docx';
 const DEFAULT_URL_VIS = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/VIS.docx';
@@ -89,6 +89,15 @@ export default function Home() {
   const [file, setFile] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
+  const configPanelRef = useRef(null);
+
+  useEffect(() => {
+    if (showConfig && configPanelRef.current) {
+      setTimeout(() => {
+        configPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [showConfig]);
   
   // Persistent Settings
   const [proposerName, setProposerName] = useState('');
@@ -654,7 +663,7 @@ export default function Home() {
             </div>
 
             {/* Configuration Panel */}
-            <div className="config-panel">
+            <div className="config-panel" ref={configPanelRef}>
               <div className="config-header" onClick={() => setShowConfig(!showConfig)}>
                 <span>
                   <i className="fa-solid fa-sliders" style={{ marginRight: '8px' }}></i>
@@ -898,6 +907,15 @@ export default function Home() {
                       >
                         <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i>
                         บันทึก
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn-back" 
+                        onClick={() => setShowConfig(false)}
+                        style={{ marginLeft: '10px', padding: '0.6rem 2rem', fontSize: '0.9rem', margin: 0 }}
+                      >
+                        <i className="fa-solid fa-eye-slash" style={{ marginRight: '6px' }}></i>
+                        ซ่อนตั้งค่า
                       </button>
                     </div>
 
