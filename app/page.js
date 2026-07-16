@@ -166,6 +166,15 @@ export default function Home() {
     if (savedVisDirPos) setVisDirectorPosition(savedVisDirPos);
   }, []);
 
+  useEffect(() => {
+    if (appState === 'upload') {
+      document.body.classList.add('hero-bg');
+    } else {
+      document.body.classList.remove('hero-bg');
+    }
+    return () => document.body.classList.remove('hero-bg');
+  }, [appState]);
+
   const handleVerifyAdminPassword = async () => {
     try {
       const response = await fetch('/api/templates/verify-password', {
@@ -563,8 +572,39 @@ export default function Home() {
       <div className="ambient-glow glow-2"></div>
 
       <header>
-        <h1>{activeSystem === 'violation' ? 'MY ผิดพิธีการ' : activeSystem === 'vis' ? 'MY VIS' : 'รถไทย'}</h1>
-        <p>PDF to บันทึก</p>
+        {appState === 'upload' ? (
+          <>
+            <div className="hero-logo">
+              <i className="fa-solid fa-file-pdf"></i>
+              <span>Buntuek</span>
+            </div>
+            <h1 className="hero-title">
+              PDF to<br />
+              บันทึกข้อความ<br />
+              ศุลกากร
+            </h1>
+            <p className="hero-desc">
+              ระบบกรอกบันทึกข้อความศุลกากรอัตโนมัติด้วยไฟล์ PDF ใบขนสินค้าพิเศษ สะดวก รวดเร็ว ถูกต้อง
+            </p>
+            <div className="hero-scenic-container">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src="https://images.unsplash.com/photo-1549693578-d683be217e58?auto=format&fit=crop&w=1000&q=80" 
+                alt="Cozy Cabin Scenic View" 
+                className="hero-scenic-image"
+              />
+              <div className="hero-scenic-rating">
+                <i className="fa-solid fa-star"></i>
+                <span>4.7</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <h1>{activeSystem === 'violation' ? 'MY ผิดพิธีการ' : activeSystem === 'vis' ? 'MY VIS' : 'รถไทย'}</h1>
+            <p>PDF to บันทึก</p>
+          </>
+        )}
       </header>
 
       {/* Tabs bar */}
@@ -597,7 +637,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="card">
+      <div className={`card ${appState === 'upload' ? 'upload-card' : ''}`}>
         {/* State 1: Upload */}
         {appState === 'upload' && (
           <div>
