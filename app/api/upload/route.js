@@ -79,6 +79,9 @@ export async function POST(request) {
     // Polyfill DOM APIs BEFORE loading pdfjs-dist (critical for Vercel serverless)
     ensurePolyfills();
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    // Explicit literal import so Vercel's file tracing bundles the worker file
+    // (pdfjs loads it dynamically as the "fake worker", which the tracer can't see)
+    await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
 
     const formData = await request.formData();
     const file = formData.get('file');
