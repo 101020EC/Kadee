@@ -580,18 +580,6 @@ export default function Home() {
             </div>
             <h1 className="hero-title">PDF to บันทึก</h1>
             <p className="hero-desc">กรอกบันทึกข้อความอัตโนมัติด้วยไฟล์ PDF</p>
-            <div className="hero-scenic-container">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src="https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&w=1000&q=80" 
-                alt="Cozy Cabin Scenic View" 
-                className="hero-scenic-image"
-              />
-              <div className="hero-scenic-rating">
-                <i className="fa-solid fa-star"></i>
-                <span>4.7</span>
-              </div>
-            </div>
           </>
         ) : (
           <>
