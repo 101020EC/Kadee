@@ -1,8 +1,4 @@
 import { NextResponse } from 'next/server';
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-
-// In Node.js/Vercel serverless runtime, PDFJS runs in fake-worker mode natively.
-// We do not set workerSrc to avoid file path resolution errors on the cloud.
 
 function convertToThaiDate(dateStr) {
   if (!dateStr) return "";
@@ -53,8 +49,37 @@ function cleanOffice(officeStr) {
   return officeStr.split('(')[0].replace(/ด่านศุลกากร/g, 'ด่านศุลกากร').trim();
 }
 
+// Install DOM polyfills that pdfjs-dist requires but are missing in Node.js/Vercel serverless
+function ensurePolyfills() {
+  if (typeof globalThis.DOMMatrix === 'undefined') {
+    globalThis.DOMMatrix = class DOMMatrix {
+      constructor(init) {
+        const v = init && Array.isArray(init) ? init : [1,0,0,1,0,0];
+        this.a = v[0]||1; this.b = v[1]||0; this.c = v[2]||0;
+        this.d = v[3]||1; this.e = v[4]||0; this.f = v[5]||0;
+        this.is2D = true; this.isIdentity = true;
+      }
+      translate() { return new DOMMatrix(); }
+      scale() { return new DOMMatrix(); }
+      multiply() { return new DOMMatrix(); }
+      inverse() { return new DOMMatrix(); }
+      transformPoint() { return { x: 0, y: 0 }; }
+    };
+  }
+  if (typeof globalThis.Path2D === 'undefined') {
+    globalThis.Path2D = class Path2D { addPath(){} closePath(){} moveTo(){} lineTo(){} bezierCurveTo(){} rect(){} arc(){} };
+  }
+  if (typeof globalThis.ImageData === 'undefined') {
+    globalThis.ImageData = class ImageData { constructor(w,h){ this.width=w; this.height=h; this.data=new Uint8ClampedArray(w*h*4); }};
+  }
+}
+
 export async function POST(request) {
   try {
+    // Polyfill DOM APIs BEFORE loading pdfjs-dist (critical for Vercel serverless)
+    ensurePolyfills();
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
     const formData = await request.formData();
     const file = formData.get('file');
     
@@ -65,7 +90,7 @@ export async function POST(request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    // Parse PDF text directly using pdfjs-dist (avoiding pdf-parse canvas native binary issues on Vercel)
+    // Parse PDF text directly using pdfjs-dist
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       useSystemArr: true,
