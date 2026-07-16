@@ -41,7 +41,8 @@ body {
 body {
     background-color: var(--bg-color);
     color: var(--text-main);
-    font-family: 'Outfit', 'Noto Sans Thai', sans-serif;
+    /* ตัวแปรมาจาก next/font ใน layout.js (ฟอนต์ถูกโฮสต์เอง ไม่ต้องต่อโดเมนภายนอก) */
+    font-family: var(--font-outfit), var(--font-noto-thai), sans-serif;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -67,16 +68,19 @@ body {
     background: rgba(123, 44, 191, 0.3);
 }
 
-/* Ambient Background Glows */
+/* Ambient Background Glows
+   เดิมใส่ filter: blur(120px) + อนิเมชันวิ่งวนไม่หยุด บน 2 ก้อนขนาด 600x600 ที่ตรึงอยู่ในจอ
+   ทำให้ GPU มือถือต้องปั่นเลเยอร์เบลอขนาดใหญ่ตลอดเวลาแม้ผู้ใช้นั่งเฉยๆ
+   ตัดทั้งสองอย่างออก: radial-gradient จางหายที่ 70% อยู่แล้ว จึงนุ่มเหมือนเดิมโดยไม่ต้องเบลอ
+   (วงแสงเข้มสุดแค่ 5.2% ม่วง = 0.08 alpha x opacity 0.65 เทียบภาพก่อน/หลังแล้วแยกไม่ออก)
+   fixed ไม่นับรวมในความกว้างเอกสาร วงแสงจึงไม่สร้างพื้นที่เลื่อนแนวนอนเกินจอ */
 .ambient-glow {
-    /* fixed ไม่นับรวมในความกว้างเอกสาร วงแสงจึงไม่สร้างพื้นที่เลื่อนแนวนอนเกินจอ */
     position: fixed;
     width: 600px;
     height: 600px;
     border-radius: 50%;
     background: radial-gradient(circle, var(--accent-glow) 0%, rgba(255,255,255,0) 70%);
     z-index: -1;
-    filter: blur(120px);
     pointer-events: none;
     opacity: 0.65;
 }
@@ -84,18 +88,11 @@ body {
 .glow-1 {
     top: -10%;
     left: -10%;
-    animation: float 20s infinite ease-in-out;
 }
 
 .glow-2 {
     bottom: -10%;
     right: -10%;
-    animation: float 25s infinite ease-in-out reverse;
-}
-
-@keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(50px, -50px) scale(1.08); }
 }
 
 /* App Container */
@@ -567,15 +564,29 @@ header p {
    Hero Split Layout for First Page (Upload State - Light Art Theme)
    ========================================================================== */
 body.hero-bg {
-    background: linear-gradient(rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.45)), 
-                url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
-    background-size: cover;
+    /* วอลเปเปอร์ย้ายไปวาดที่ ::before ด้านล่าง จึงต้องไม่มีพื้นหลังทึบมาบังไว้ */
+    background: none;
     color: #14121d; /* Dark charcoal text for light theme */
     align-items: flex-start;
     /* ยึดขอบบน: ถ้าใช้ center เนื้อหาจะถูกดันขึ้นทุกครั้งที่การ์ดสูงขึ้น (เช่นตอนเปิดตั้งค่า) */
     justify-content: flex-start;
     min-height: 100vh;
     padding-top: 2rem;
+}
+
+/* วอลเปเปอร์เป็นเลเยอร์ fixed แยกต่างหาก แทนการใช้ background-attachment: fixed
+   ซึ่งบังคับให้เบราว์เซอร์วาดพื้นหลังใหม่ทุกเฟรมที่เลื่อน (สาเหตุหลักของอาการหน่วงบนมือถือ)
+   เลเยอร์นี้ถูก raster ครั้งเดียวแล้ว compositor ตรึงไว้เอง จึงแทบไม่มีต้นทุน
+   รูปโฮสต์เองเป็น WebP 23KB (เดิมดึงจาก Unsplash 271KB) */
+body.hero-bg::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.45)),
+                url('/hero-bg.webp') no-repeat center center;
+    background-size: cover;
+    pointer-events: none;
 }
 
 body.hero-bg .container {

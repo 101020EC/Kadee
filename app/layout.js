@@ -1,4 +1,25 @@
+// โฮสต์ไฟล์ฟอนต์เองทั้งหมด แทนการดึงจาก fonts.googleapis.com + fonts.gstatic.com + cdnjs
+// บนมือถือแต่ละโดเมนภายนอกต้องทำ DNS + TCP + TLS ให้เสร็จก่อนหน้าเว็บจะขึ้นได้
+import { Outfit, Noto_Sans_Thai } from "next/font/google";
+import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
+import "@fortawesome/fontawesome-free/css/solid.min.css";
+import "@fortawesome/fontawesome-free/css/regular.min.css";
 import "./globals.css";
+
+// โหลดเฉพาะน้ำหนักที่ใช้จริง (ตรวจจาก document.fonts แล้วว่าใช้ 400/500/700 เท่านั้น)
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  variable: "--font-outfit",
+});
+
+const notoSansThai = Noto_Sans_Thai({
+  subsets: ["thai"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  variable: "--font-noto-thai",
+});
 
 export const metadata = {
   title: "Buntuek - ระบบกรอกบันทึกข้อความศุลกากรอัตโนมัติ",
@@ -14,23 +35,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="th">
-      <head>
-        {/* FontAwesome Icon Stylesheet */}
-        <link 
-          rel="stylesheet" 
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
-          precedence="default"
-        />
-        {/* Google Fonts Link */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link 
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" 
-          rel="stylesheet" 
-        />
-      </head>
+    <html lang="th" className={`${outfit.variable} ${notoSansThai.variable}`}>
       <body>
         {children}
       </body>
