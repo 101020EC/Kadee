@@ -272,14 +272,6 @@ export async function POST(request) {
     data.approver_name = "";
     data.approver_position = "";
     
-    await logEvent('upload', 'success', {
-      filename: file.name,
-      size: file.size,
-      pages: pdfDoc.numPages,
-      declaration_number: data.declaration_number,
-      case_number: data.case_number
-    });
-
     return NextResponse.json(data);
   } catch (error) {
     console.error('Failed to parse PDF:', error);

@@ -76,7 +76,9 @@ export async function POST(request) {
     await logEvent('generate', 'success', {
       template: templateUrl.split('/').pop(),
       case_number: data.case_number,
-      declaration_number: data.declaration_number
+      declaration_number: data.declaration_number,
+      doc_date: data.doc_date_th || data.doc_date,
+      proposer_name: data.proposer_name
     });
     
     // Return the generated DOCX file
