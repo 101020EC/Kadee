@@ -857,33 +857,27 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Footer buttons row */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.5rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '1rem', position: 'relative' }}>
-                    {/* Far Left: Template Button */}
-                    <button 
-                      type="button" 
-                      className="btn-select"
+                  {/* Footer buttons row: Template (ซ้าย) | บันทึก (กลาง) | ซ่อนตั้งค่า (ขวา) */}
+                  <div className="config-actions">
+                    <button
+                      type="button"
+                      className="btn-select btn-template"
                       onClick={() => setShowTemplateModal(true)}
-                      style={{ 
-                        padding: '0.6rem 1.8rem', 
-                        fontSize: '0.9rem',
+                      style={{
                         background: 'rgba(123, 44, 191, 0.15)',
                         color: 'var(--accent-primary)',
                         border: 'none',
-                        boxShadow: 'none',
-                        margin: 0
+                        boxShadow: 'none'
                       }}
                     >
                       <i className="fa-solid fa-file-word" style={{ marginRight: '6px' }}></i>
                       Template
                     </button>
 
-                    {/* Center: Save Button */}
-                    <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-                      <button 
-                        type="button" 
-                        className="btn-select" 
-                        onClick={() => {
+                    <button
+                      type="button"
+                      className="btn-select btn-save"
+                      onClick={() => {
                           localStorage.setItem('proposer_name', proposerName);
                           localStorage.setItem('proposer_position', proposerPosition);
                           localStorage.setItem('approver_selection', approverSelection);
@@ -903,24 +897,19 @@ export default function Home() {
                           showToast('บันทึกการตั้งค่าเรียบร้อยแล้ว!');
                           setShowConfig(false);
                         }}
-                        style={{ padding: '0.6rem 2.5rem', fontSize: '0.9rem', margin: 0 }}
-                      >
-                        <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i>
-                        บันทึก
-                      </button>
-                      <button 
-                        type="button" 
-                        className="btn-back" 
-                        onClick={() => setShowConfig(false)}
-                        style={{ marginLeft: '10px', padding: '0.6rem 2rem', fontSize: '0.9rem', margin: 0 }}
-                      >
-                        <i className="fa-solid fa-eye-slash" style={{ marginRight: '6px' }}></i>
-                        ซ่อนตั้งค่า
-                      </button>
-                    </div>
+                    >
+                      <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i>
+                      บันทึก
+                    </button>
 
-                    {/* Far Right placeholder to balance the layout */}
-                    <div style={{ width: '120px' }}></div>
+                    <button
+                      type="button"
+                      className="btn-back btn-hide"
+                      onClick={() => setShowConfig(false)}
+                    >
+                      <i className="fa-solid fa-eye-slash" style={{ marginRight: '6px' }}></i>
+                      ซ่อนตั้งค่า
+                    </button>
                   </div>
                 </div>
               )}
