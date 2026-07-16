@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logEvent } from '@/app/lib/logger';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import fs from 'fs';
@@ -71,6 +72,12 @@ export async function POST(request) {
     
     const caseNumberStr = (data.case_number || 'Output').replace(/[\/\\]/g, '_');
     const filename = `Memo_${caseNumberStr}.docx`;
+
+    await logEvent('generate', 'success', {
+      template: templateUrl.split('/').pop(),
+      case_number: data.case_number,
+      declaration_number: data.declaration_number
+    });
     
     // Return the generated DOCX file
     return new Response(outBuffer, {
@@ -83,6 +90,7 @@ export async function POST(request) {
     
   } catch (error) {
     console.error('Failed to generate document:', error);
+    await logEvent('generate', 'error', {}, error.message);
     return NextResponse.json({ error: `Failed to generate document: ${error.message}` }, { status: 500 });
   }
 }

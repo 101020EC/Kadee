@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logEvent } from '@/app/lib/logger';
 
 function convertToThaiDate(dateStr) {
   if (!dateStr) return "";
@@ -271,9 +272,18 @@ export async function POST(request) {
     data.approver_name = "";
     data.approver_position = "";
     
+    await logEvent('upload', 'success', {
+      filename: file.name,
+      size: file.size,
+      pages: pdfDoc.numPages,
+      declaration_number: data.declaration_number,
+      case_number: data.case_number
+    });
+
     return NextResponse.json(data);
   } catch (error) {
     console.error('Failed to parse PDF:', error);
+    await logEvent('upload', 'error', {}, error.message);
     return NextResponse.json({ error: `Failed to parse PDF: ${error.message}` }, { status: 500 });
   }
 }
