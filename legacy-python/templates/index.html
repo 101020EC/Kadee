@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buntuek - ระบบกรอกบันทึกข้อความศุลกากรอัตโนมัติ</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #06050b;
+            --card-bg: rgba(13, 11, 23, 0.65);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-primary: #8a2be2;
+            --accent-secondary: #4a00e0;
+            --accent-glow: rgba(138, 43, 226, 0.4);
+            --text-main: #f3f3f6;
+            --text-muted: #9fa0aa;
+            --success: #00e676;
+            --error: #ff1744;
+            --input-bg: rgba(255, 255, 255, 0.03);
+            --input-border: rgba(255, 255, 255, 0.1);
+            --input-focus: #b388ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans Thai', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+            padding: 2rem 1rem;
+        }
+
+        /* Ambient Background Glows */
+        .ambient-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accent-glow) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            filter: blur(80px);
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .glow-1 {
+            top: -10%;
+            left: -10%;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .glow-2 {
+            bottom: -10%;
+            right: -10%;
+            animation: float 25s infinite ease-in-out reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, -50px) scale(1.1); }
+        }
+
+        /* App Container */
+        .container {
+            width: 100%;
+            max-width: 900px;
+            z-index: 10;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        header h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff 40%, #c5a3ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        /* Glassmorphic Card */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Drag & Drop Upload Zone */
+        .upload-zone {
+            border: 2px dashed var(--input-border);
+            border-radius: 18px;
+            padding: 3.5rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.01);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-primary);
+            background: rgba(138, 43, 226, 0.03);
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.1);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--success);
+            background: rgba(0, 230, 118, 0.05);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3.5rem;
+            color: var(--accent-primary);
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .upload-zone:hover .upload-icon {
+            transform: translateY(-5px);
+        }
+
+        .upload-zone.dragover .upload-icon {
+            color: var(--success);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.15); }
+        }
+
+        .upload-zone h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .upload-zone p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-select {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            border: none;
+            color: white;
+            padding: 0.8rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            transition: all 0.3s ease;
+        }
+
+        .btn-select:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(138, 43, 226, 0.6);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Loading / Processing Indicator */
+        .loading-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 3rem 0;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.05);
+            border-top: 4px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Form Details Layout */
+        .details-form {
+            display: none;
+            animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin: 1.8rem 0 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+        }
+
+        .section-title:first-of-type {
+            margin-top: 0;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            padding-left: 2px;
+        }
+
+        .form-group input {
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.25s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--input-focus);
+            background-color: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 12px rgba(179, 136, 255, 0.25);
+        }
+
+        /* Action Buttons Area */
+        .actions-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 1.5rem;
+            gap: 1rem;
+        }
+
+        .btn-back {
+            background: transparent;
+            border: 1px solid var(--input-border);
+            color: var(--text-muted);
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .btn-back:hover {
+            border-color: var(--text-muted);
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #00e676 0%, #00b0ff 100%);
+            border: none;
+            color: #030206;
+            padding: 0.8rem 2.2rem;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 230, 118, 0.5);
+        }
+
+        .btn-generate:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.3);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Notifications / Error Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(255, 23, 68, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 10px 25px rgba(255, 23, 68, 0.3);
+            display: none;
+            z-index: 100;
+            align-items: center;
+            gap: 0.8rem;
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Elements -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="container">
+        <header>
+            <h1>Buntuek</h1>
+            <p>อัปโหลดใบขนสินค้าพิเศษ PDF เพื่อกรอกข้อมูลบันทึกข้อความศุลกากรโดยอัตโนมัติ</p>
+        </header>
+
+        <div class="card">
+            <!-- State 1: File Upload -->
+            <div id="upload-container">
+                <div class="upload-zone" id="drop-zone">
+                    <input type="file" id="file-input" accept=".pdf">
+                    <div class="upload-icon">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+                    <h3>ลากไฟล์ PDF มาวางที่นี่</h3>
+                    <p>หรือคลิกเพื่อเลือกไฟล์จากเครื่องคอมพิวเตอร์ของคุณ (รองรับเฉพาะไฟล์ PDF)</p>
+                    <button class="btn-select" id="select-btn">เลือกไฟล์</button>
+                </div>
+            </div>
+
+            <!-- State 2: Loading / Parsing -->
+            <div class="loading-screen" id="loading-container">
+                <div class="spinner"></div>
+                <h3>กำลังวิเคราะห์ไฟล์ PDF และสกัดข้อมูล...</h3>
+                <p style="color: var(--text-muted); margin-top: 0.5rem; font-size: 0.9rem;">ระบบกำลังอ่านเอกสารและแปลงวันที่เป็นปี พ.ศ. ของไทย</p>
+            </div>
+
+            <!-- State 3: Metadata Review and Form -->
+            <div class="details-form" id="form-container">
+                <form id="metadata-form">
+                    
+                    <!-- Section 1: Case Info -->
+                    <div class="section-title">
+                        <i class="fa-solid fa-scale-balanced"></i> ข้อมูลทางคดีและด่านศุลกากร
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="case_number">เลขแฟ้มคดี (หลัง ดปบ.ร.)</label>
+                            <input type="text" id="case_number" name="case_number" required placeholder="เช่น 926/18.6.69">
+                        </div>
+                        <div class="form-group">
+                            <label for="customs_office">ด่านศุลกากร</label>
+                            <input type="text" id="customs_office" name="customs_office" required placeholder="เช่น ด่านศุลกากรปาดังเบซาร์">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="declaration_number">เลขที่ใบขนสินค้าพิเศษ</label>
+                            <input type="text" id="declaration_number" name="declaration_number" required placeholder="เช่น 5901-7690504405">
+                        </div>
+                        <div class="form-group">
+                            <label for="person_name">ชื่อผู้ขออนุญาตนำเข้าชั่วคราว</label>
+                            <input type="text" id="person_name" name="person_name" required placeholder="เช่น MRS. MUSALMAH BINTI MD ARIP">
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Vehicle details -->
+                    <div class="section-title">
+                        <i class="fa-solid fa-motorcycle"></i> รายละเอียดของยานพาหนะ
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="vehicle_type">ประเภทรถ</label>
+                            <input type="text" id="vehicle_type" name="vehicle_type" required placeholder="เช่น รถจักรยานยนต์">
+                        </div>
+                        <div class="form-group">
+                            <label for="vehicle_brand">ยี่ห้อรถ</label>
+                            <input type="text" id="vehicle_brand" name="vehicle_brand" required placeholder="เช่น HONDA">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="vehicle_plate">หมายเลขทะเบียนรถ</label>
+                            <input type="text" id="vehicle_plate" name="vehicle_plate" required placeholder="เช่น RBD 8479">
+                        </div>
+                        <div style="visibility: hidden;" class="form-group">
+                            <!-- Empty block for grid layout -->
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Dates -->
+                    <div class="section-title">
+                        <i class="fa-regular fa-calendar-days"></i> วันที่ทำรายการ (ไทย พ.ศ.)
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="import_date_th">วันนำเข้าชั่วคราว</label>
+                            <input type="text" id="import_date_th" name="import_date_th" required placeholder="เช่น 18 พฤษภาคม 2569">
+                        </div>
+                        <div class="form-group">
+                            <label for="due_date_th">วันครบกำหนดสัญญาประกัน</label>
+                            <input type="text" id="due_date_th" name="due_date_th" required placeholder="เช่น 16 มิถุนายน 2569">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="return_date_th">วันที่นำยานพาหนะออกไปจริง</label>
+                            <input type="text" id="return_date_th" name="return_date_th" required placeholder="เช่น 11 มิถุนายน 2569">
+                        </div>
+                        <div class="form-group">
+                            <label for="doc_date_th">วันที่ทำบันทึกข้อความ / วันที่ตัดบัญชี</label>
+                            <input type="text" id="doc_date_th" name="doc_date_th" required placeholder="เช่น 18 มิถุนายน 2569">
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Officers -->
+                    <div class="section-title">
+                        <i class="fa-solid fa-user-tie"></i> เจ้าหน้าที่และอักษรย่อฝ่าย
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="dept_abbr">อักษรย่อฝ่ายรับผิดชอบ (เช่น ฝคต.)</label>
+                            <input type="text" id="dept_abbr" name="dept_abbr" required placeholder="เช่น ฝคต">
+                        </div>
+                        <div class="form-group">
+                            <!-- Empty block for layout -->
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="proposer_name">ชื่อเจ้าหน้าที่ผู้เสนอรายงาน</label>
+                            <input type="text" id="proposer_name" name="proposer_name" required placeholder="เช่น นายสุรวัฒน์ โชติช่วง">
+                        </div>
+                        <div class="form-group">
+                            <label for="proposer_position">ตำแหน่งผู้เสนอรายงาน</label>
+                            <input type="text" id="proposer_position" name="proposer_position" required placeholder="เช่น นักวิชาการศุลกากรชำนาญการ">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="approver_name">ชื่อผู้อนุมัติ/เปรียบเทียบปรับ</label>
+                            <input type="text" id="approver_name" name="approver_name" required placeholder="เช่น นายวรวุฒิ สุภชัยพานิชพงศ์">
+                        </div>
+                        <div class="form-group">
+                            <label for="approver_position">ตำแหน่งผู้อนุมัติ</label>
+                            <input type="text" id="approver_position" name="approver_position" required placeholder="เช่น หัวหน้าฝ่ายควบคุมและตรวจสอบทางศุลกากร">
+                        </div>
+                    </div>
+
+                    <!-- Action Area -->
+                    <div class="actions-area">
+                        <button type="button" class="btn-back" id="back-btn">
+                            <i class="fa-solid fa-arrow-left"></i> กลับไปอัปโหลดใหม่
+                        </button>
+                        <button type="submit" class="btn-generate" id="submit-btn">
+                            <i class="fa-solid fa-file-word"></i> สร้างบันทึกข้อความ Word
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="toast" id="error-toast">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="toast-message">เกิดข้อผิดพลาดในการประมวลผล</span>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const selectBtn = document.getElementById('select-btn');
+        const backBtn = document.getElementById('back-btn');
+        const uploadContainer = document.getElementById('upload-container');
+        const loadingContainer = document.getElementById('loading-container');
+        const formContainer = document.getElementById('form-container');
+        const metadataForm = document.getElementById('metadata-form');
+        const errorToast = document.getElementById('error-toast');
+        const toastMessage = document.getElementById('toast-message');
+
+        // File Selection Handlers
+        selectBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and Drop Handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        });
+
+        // Go Back Button
+        backBtn.addEventListener('click', () => {
+            formContainer.style.display = 'none';
+            uploadContainer.style.display = 'block';
+            metadataForm.reset();
+            fileInput.value = '';
+        });
+
+        function showToast(message) {
+            toastMessage.textContent = message;
+            errorToast.style.display = 'flex';
+            setTimeout(() => {
+                errorToast.style.display = 'none';
+            }, 5000);
+        }
+
+        // Upload and Parse
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            if (file.type !== 'application/pdf') {
+                showToast('กรุณาเลือกไฟล์ PDF เท่านั้น');
+                fileInput.value = '';
+                return;
+            }
+
+            // Show Loading
+            uploadContainer.style.display = 'none';
+            loadingContainer.style.display = 'flex';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.error || 'วิเคราะห์ไฟล์ล้มเหลว'); });
+                }
+                return res.json();
+            })
+            .then(data => {
+                // Fill Form Data
+                for (const key in data) {
+                    const input = document.getElementById(key);
+                    if (input) {
+                        input.value = data[key];
+                    }
+                }
+                // Transition to Form State
+                loadingContainer.style.display = 'none';
+                formContainer.style.display = 'block';
+            })
+            .catch(err => {
+                console.error(err);
+                loadingContainer.style.display = 'none';
+                uploadContainer.style.display = 'block';
+                showToast(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ หรือประมวลผล PDF ได้');
+            });
+        }
+
+        // Form Submit -> Word Generation
+        metadataForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const formData = {};
+            const elements = metadataForm.elements;
+            for (let i = 0; i < elements.length; i++) {
+                const item = elements[i];
+                if (item.name) {
+                    formData[item.name] = item.value;
+                }
+            }
+
+            // Disable Submit Button to prevent double submission
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังสร้างไฟล์...';
+
+            fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('ไม่สามารถสร้างบันทึกข้อความได้');
+                }
+                // Get filename from Header or construct one
+                const contentDisposition = res.headers.get('content-disposition');
+                let filename = `Memo_${formData.case_number}.docx`.replace('/', '_');
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (match && match[1]) {
+                        filename = match[1];
+                    }
+                }
+                return res.blob().then(blob => ({ blob, filename }));
+            })
+            .then(({ blob, filename }) => {
+                // Download file
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                
+                // Reset Button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-file-word"></i> สร้างบันทึกข้อความ Word';
+            })
+            .catch(err => {
+                console.error(err);
+                showToast(err.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดเอกสาร');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-file-word"></i> สร้างบันทึกข้อความ Word';
+            });
+        });
+    </script>
+</body>
+</html>
