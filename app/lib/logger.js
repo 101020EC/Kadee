@@ -11,7 +11,7 @@ export async function logEvent(event, status, detail = {}, error = null) {
   // ดึง proposer_name และ template ออกมาเป็นคอลัมน์แยก ที่เหลือเก็บใน detail (jsonb)
   const { proposer_name = null, template = null, ...restDetail } = detail;
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/app_logs`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_logs`, {
       method: 'POST',
       headers: {
         apikey: SERVICE_KEY,
@@ -29,6 +29,10 @@ export async function logEvent(event, status, detail = {}, error = null) {
       }),
       signal: AbortSignal.timeout(3000)
     });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn('logEvent failed with status:', res.status, errText);
+    }
   } catch (e) {
     console.warn('logEvent failed:', e.message);
   }
