@@ -310,6 +310,8 @@ export default function Home() {
 
     const uploadFormData = new FormData();
     uploadFormData.append('file', selectedFile);
+    uploadFormData.append('proposer_name', proposerName || '');
+    uploadFormData.append('system', activeSystem);
 
     try {
       const response = await fetch('/api/upload', {

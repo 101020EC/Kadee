@@ -8,8 +8,8 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
  */
 export async function logEvent(event, status, detail = {}, error = null) {
   if (!SUPABASE_URL || !SERVICE_KEY) return;
-  // ดึง proposer_name ออกมาเป็นคอลัมน์แยก ที่เหลือเก็บใน detail (jsonb)
-  const { proposer_name = null, ...restDetail } = detail;
+  // ดึง proposer_name และ template ออกมาเป็นคอลัมน์แยก ที่เหลือเก็บใน detail (jsonb)
+  const { proposer_name = null, template = null, ...restDetail } = detail;
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/app_logs`, {
       method: 'POST',
@@ -19,7 +19,14 @@ export async function logEvent(event, status, detail = {}, error = null) {
         'Content-Type': 'application/json',
         Prefer: 'return=minimal'
       },
-      body: JSON.stringify({ event, status, detail: restDetail, error, proposer_name }),
+      body: JSON.stringify({
+        proposer_name,
+        template,
+        event,
+        status,
+        detail: restDetail,
+        error
+      }),
       signal: AbortSignal.timeout(3000)
     });
   } catch (e) {

@@ -76,6 +76,9 @@ function ensurePolyfills() {
 }
 
 export async function POST(request) {
+  let proposerName = '';
+  let system = '';
+  let file = null;
   try {
     // Polyfill DOM APIs BEFORE loading pdfjs-dist (critical for Vercel serverless)
     ensurePolyfills();
@@ -85,7 +88,9 @@ export async function POST(request) {
     await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
 
     const formData = await request.formData();
-    const file = formData.get('file');
+    file = formData.get('file');
+    proposerName = formData.get('proposer_name') || '';
+    system = formData.get('system') || '';
     
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -269,10 +274,56 @@ export async function POST(request) {
     data.approver_name = "";
     data.approver_position = "";
     
+    let templateName = 'ไม่ทราบแน่ชัด';
+    if (system === 'thai_vehicle') {
+      templateName = 'รถไทย';
+    } else if (system === 'violation') {
+      templateName = 'MY ผิดพิธีการ';
+    } else if (system === 'vis') {
+      templateName = 'MY VIS';
+    }
+
+    if (!system && file) {
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.includes('ptk')) templateName = 'รถไทย';
+      else if (lowerName.includes('vis')) templateName = 'MY VIS';
+      else if (lowerName.includes('my')) templateName = 'MY ผิดพิธีการ';
+    }
+
+    await logEvent('upload', 'success', {
+      template: templateName,
+      proposer_name: proposerName || data.proposer_name,
+      filename: file ? file.name : '',
+      case_number: data.case_number,
+      declaration_number: data.declaration_number
+    });
+
     return NextResponse.json(data);
   } catch (error) {
     console.error('Failed to parse PDF:', error);
-    await logEvent('upload', 'error', {}, error.message);
+
+    let templateName = 'ไม่ทราบแน่ชัด';
+    if (system === 'thai_vehicle') {
+      templateName = 'รถไทย';
+    } else if (system === 'violation') {
+      templateName = 'MY ผิดพิธีการ';
+    } else if (system === 'vis') {
+      templateName = 'MY VIS';
+    }
+
+    if (!system && file) {
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.includes('ptk')) templateName = 'รถไทย';
+      else if (lowerName.includes('vis')) templateName = 'MY VIS';
+      else if (lowerName.includes('my')) templateName = 'MY ผิดพิธีการ';
+    }
+
+    await logEvent('upload', 'error', {
+      template: templateName,
+      proposer_name: proposerName,
+      filename: file ? file.name : ''
+    }, error.message);
+
     return NextResponse.json({ error: `Failed to parse PDF: ${error.message}` }, { status: 500 });
   }
 }

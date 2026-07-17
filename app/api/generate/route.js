@@ -76,8 +76,18 @@ export async function POST(request) {
     const caseNumberStr = (data.case_number || 'Output').replace(/[\/\\]/g, '_');
     const filename = `Memo_${caseNumberStr}.docx`;
 
+    let templateName = 'ไม่ทราบแน่ชัด';
+    const lowerUrl = templateUrl.toLowerCase();
+    if (lowerUrl.includes('ptk')) {
+      templateName = 'รถไทย';
+    } else if (lowerUrl.includes('my')) {
+      templateName = 'MY ผิดพิธีการ';
+    } else if (lowerUrl.includes('vis')) {
+      templateName = 'MY VIS';
+    }
+
     await logEvent('generate', 'success', {
-      template: templateUrl.split('/').pop(),
+      template: templateName,
       case_number: data.case_number,
       declaration_number: data.declaration_number,
       doc_date: data.doc_date_th || data.doc_date,
@@ -95,7 +105,25 @@ export async function POST(request) {
     
   } catch (error) {
     console.error('Failed to generate document:', error);
-    await logEvent('generate', 'error', {}, error.message);
+
+    let templateName = 'ไม่ทราบแน่ชัด';
+    if (data && data.template_url) {
+      const lowerUrl = data.template_url.toLowerCase();
+      if (lowerUrl.includes('ptk')) {
+        templateName = 'รถไทย';
+      } else if (lowerUrl.includes('my')) {
+        templateName = 'MY ผิดพิธีการ';
+      } else if (lowerUrl.includes('vis')) {
+        templateName = 'MY VIS';
+      }
+    }
+
+    await logEvent('generate', 'error', {
+      template: templateName,
+      proposer_name: data ? data.proposer_name : null,
+      case_number: data ? data.case_number : null,
+      declaration_number: data ? data.declaration_number : null
+    }, error.message);
     return NextResponse.json({ error: `Failed to generate document: ${error.message}` }, { status: 500 });
   }
 }
