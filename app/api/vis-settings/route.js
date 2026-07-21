@@ -5,6 +5,11 @@ import path from 'path';
 const SETTINGS_FILE_NAME = 'vis_settings.json';
 
 const DEFAULT_VIS_SETTINGS = {
+  approver_selection: 'approver_1',
+  approver_1_name: 'นายวรวุฒิ สุภชัยพานิชพงศ์',
+  approver_2_name: 'นางสาวปิลันธนา ไตรทิพพิสมัย',
+  proposer_name: '',
+  proposer_position: 'นักวิชาการศุลกากรชำนาญการ',
   vis_chief_name: 'นายหะริน หอวัง',
   vis_chief_position: 'นายด่านศุลกากรปาดังเบซาร์',
   vis_director_name: 'นายพิภพ พุทธสุข',
@@ -34,7 +39,7 @@ export async function GET() {
           });
         }
       } catch (cloudErr) {
-        console.warn('Failed to fetch VIS settings from Supabase:', cloudErr.message);
+        console.warn('Failed to fetch settings from Supabase:', cloudErr.message);
       }
     }
 
@@ -57,9 +62,9 @@ export async function GET() {
       data: DEFAULT_VIS_SETTINGS
     });
   } catch (error) {
-    console.error('Error fetching VIS settings:', error);
+    console.error('Error fetching settings:', error);
     return NextResponse.json({
-      error: 'ไม่สามารถดึงข้อมูลเจ้าหน้าที่ระบบ MY VIS ได้',
+      error: 'ไม่สามารถดึงข้อมูลตั้งค่าระบบได้',
       details: error.message
     }, { status: 500 });
   }
@@ -73,6 +78,11 @@ export async function POST(request) {
     }
 
     const payload = {
+      approver_selection: data.approver_selection || DEFAULT_VIS_SETTINGS.approver_selection,
+      approver_1_name: data.approver_1_name !== undefined ? data.approver_1_name : DEFAULT_VIS_SETTINGS.approver_1_name,
+      approver_2_name: data.approver_2_name !== undefined ? data.approver_2_name : DEFAULT_VIS_SETTINGS.approver_2_name,
+      proposer_name: data.proposer_name !== undefined ? data.proposer_name : DEFAULT_VIS_SETTINGS.proposer_name,
+      proposer_position: data.proposer_position || DEFAULT_VIS_SETTINGS.proposer_position,
       vis_chief_name: data.vis_chief_name || DEFAULT_VIS_SETTINGS.vis_chief_name,
       vis_chief_position: data.vis_chief_position || DEFAULT_VIS_SETTINGS.vis_chief_position,
       vis_director_name: data.vis_director_name || DEFAULT_VIS_SETTINGS.vis_director_name,
@@ -93,7 +103,7 @@ export async function POST(request) {
     // 1. Upload to Supabase Storage if configured
     if (supabaseUrl && serviceRoleKey) {
       const uploadUrl = `${supabaseUrl}/storage/v1/object/Template/${SETTINGS_FILE_NAME}`;
-      console.log(`Saving VIS settings to Supabase Storage: ${uploadUrl}`);
+      console.log(`Saving settings to Supabase Storage: ${uploadUrl}`);
       try {
         const response = await fetch(uploadUrl, {
           method: 'POST',
@@ -114,7 +124,7 @@ export async function POST(request) {
           throw new Error(`Supabase returned status: ${response.status} - ${errText}`);
         }
       } catch (err) {
-        console.error('Supabase upload for VIS settings failed:', err.message);
+        console.error('Supabase upload for settings failed:', err.message);
         cloudError = err.message;
       }
     }
@@ -133,8 +143,8 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         message: uploadedToCloud 
-          ? 'บันทึกข้อมูลเจ้าหน้าที่ระบบ MY VIS บนระบบ Cloud เรียบร้อยแล้ว'
-          : 'บันทึกข้อมูลเจ้าหน้าที่ระบบ MY VIS ในไฟล์เครื่องเรียบร้อยแล้ว',
+          ? 'บันทึกข้อมูลตั้งค่าบนระบบ Cloud เรียบร้อยแล้ว'
+          : 'บันทึกข้อมูลตั้งค่าในไฟล์เครื่องเรียบร้อยแล้ว',
         cloud: uploadedToCloud,
         local: savedLocally,
         cloudError,
@@ -145,9 +155,9 @@ export async function POST(request) {
     throw new Error('ไม่สามารถบันทึกข้อมูลได้ทั้งระบบ Cloud และ Local');
 
   } catch (error) {
-    console.error('Error saving VIS settings:', error);
+    console.error('Error saving settings:', error);
     return NextResponse.json({
-      error: `ไม่สามารถบันทึกข้อมูลเจ้าหน้าที่ระบบ MY VIS: ${error.message}`
+      error: `ไม่สามารถบันทึกข้อมูลตั้งค่า: ${error.message}`
     }, { status: 500 });
   }
 }

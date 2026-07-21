@@ -174,12 +174,32 @@ export default function Home() {
     const savedVisDirPos = localStorage.getItem('vis_director_position');
     if (savedVisDirPos) setVisDirectorPosition(savedVisDirPos);
 
-    // Fetch latest MY VIS officer settings from Cloud API
+    // Fetch latest settings from Cloud API
     fetch('/api/vis-settings')
       .then(res => res.json())
       .then(resData => {
         if (resData.success && resData.data) {
           const d = resData.data;
+          if (d.approver_selection) {
+            setApproverSelection(d.approver_selection);
+            localStorage.setItem('approver_selection', d.approver_selection);
+          }
+          if (d.approver_1_name) {
+            setApprover1Name(d.approver_1_name);
+            localStorage.setItem('approver_1_name', d.approver_1_name);
+          }
+          if (d.approver_2_name) {
+            setApprover2Name(d.approver_2_name);
+            localStorage.setItem('approver_2_name', d.approver_2_name);
+          }
+          if (d.proposer_name !== undefined) {
+            setProposerName(d.proposer_name);
+            localStorage.setItem('proposer_name', d.proposer_name);
+          }
+          if (d.proposer_position) {
+            setProposerPosition(d.proposer_position);
+            localStorage.setItem('proposer_position', d.proposer_position);
+          }
           if (d.vis_chief_name) {
             setVisChiefName(d.vis_chief_name);
             localStorage.setItem('vis_chief_name', d.vis_chief_name);
@@ -215,7 +235,7 @@ export default function Home() {
         }
       })
       .catch(err => {
-        console.warn('Could not fetch cloud VIS settings:', err);
+        console.warn('Could not fetch cloud settings:', err);
       });
   }, []);
 
@@ -770,7 +790,7 @@ export default function Home() {
                         style={{ cursor: 'pointer', width: '18px', height: '18px' }}
                       />
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                        <label htmlFor="select_app_1" style={{ cursor: 'pointer', fontWeight: '700' }}>
+                        <label htmlFor="select_app_1" style={{ cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
                           หัวหน้าฝ่ายควบคุมและตรวจสอบทางศุลกากร (ฝคต.)
                         </label>
                         <input 
@@ -792,7 +812,7 @@ export default function Home() {
                         style={{ cursor: 'pointer', width: '18px', height: '18px' }}
                       />
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                        <label htmlFor="select_app_2" style={{ cursor: 'pointer', fontWeight: '700' }}>
+                        <label htmlFor="select_app_2" style={{ cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
                           หัวหน้าฝ่ายสืบสวนและปราบปราม (ฝปป.)
                         </label>
                         <input 
@@ -945,12 +965,17 @@ export default function Home() {
                           localStorage.setItem('vis_director_name', visDirectorName);
                           localStorage.setItem('vis_director_position', visDirectorPosition);
 
-                          // Save MY VIS officer settings to Cloud
+                          // Save settings to Cloud
                           try {
                             const cloudRes = await fetch('/api/vis-settings', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
+                                approver_selection: approverSelection,
+                                approver_1_name: approver1Name,
+                                approver_2_name: approver2Name,
+                                proposer_name: proposerName,
+                                proposer_position: proposerPosition,
                                 vis_chief_name: visChiefName,
                                 vis_chief_position: visChiefPosition,
                                 vis_director_name: visDirectorName,
