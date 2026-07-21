@@ -173,6 +173,50 @@ export default function Home() {
     if (savedVisDirName !== null) setVisDirectorName(savedVisDirName);
     const savedVisDirPos = localStorage.getItem('vis_director_position');
     if (savedVisDirPos) setVisDirectorPosition(savedVisDirPos);
+
+    // Fetch latest MY VIS officer settings from Cloud API
+    fetch('/api/vis-settings')
+      .then(res => res.json())
+      .then(resData => {
+        if (resData.success && resData.data) {
+          const d = resData.data;
+          if (d.vis_chief_name) {
+            setVisChiefName(d.vis_chief_name);
+            localStorage.setItem('vis_chief_name', d.vis_chief_name);
+          }
+          if (d.vis_chief_position) {
+            setVisChiefPosition(d.vis_chief_position);
+            localStorage.setItem('vis_chief_position', d.vis_chief_position);
+          }
+          if (d.vis_director_name) {
+            setVisDirectorName(d.vis_director_name);
+            localStorage.setItem('vis_director_name', d.vis_director_name);
+          }
+          if (d.vis_director_position) {
+            setVisDirectorPosition(d.vis_director_position);
+            localStorage.setItem('vis_director_position', d.vis_director_position);
+          }
+          if (d.vis_head_service_name) {
+            setVisHeadServiceName(d.vis_head_service_name);
+            localStorage.setItem('vis_head_service_name', d.vis_head_service_name);
+          }
+          if (d.vis_head_service_position) {
+            setVisHeadServicePosition(d.vis_head_service_position);
+            localStorage.setItem('vis_head_service_position', d.vis_head_service_position);
+          }
+          if (d.vis_legal_name) {
+            setVisLegalName(d.vis_legal_name);
+            localStorage.setItem('vis_legal_name', d.vis_legal_name);
+          }
+          if (d.vis_legal_position) {
+            setVisLegalPosition(d.vis_legal_position);
+            localStorage.setItem('vis_legal_position', d.vis_legal_position);
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('Could not fetch cloud VIS settings:', err);
+      });
   }, []);
 
   useEffect(() => {
@@ -766,29 +810,7 @@ export default function Home() {
                     <i className="fa-solid fa-users-gear" style={{ marginRight: '6px' }}></i> ข้อมูลเจ้าหน้าที่ระบบ MY VIS (กำหนดและแก้ไขได้)
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <div className="grid-2">
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.85rem' }}>ชื่อนิติกร:</label>
-                        <input 
-                          type="text" 
-                          value={visLegalName} 
-                          onChange={e => setVisLegalName(e.target.value)} 
-                          placeholder="เช่น นายสุทิน ภูเดช"
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
-                        />
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.85rem' }}>ตำแหน่งนิติกร:</label>
-                        <input 
-                          type="text" 
-                          value={visLegalPosition} 
-                          onChange={e => setVisLegalPosition(e.target.value)} 
-                          placeholder="เช่น นิติกรชำนาญการ"
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
-                        />
-                      </div>
-                    </div>
-                    
+                    {/* 1. นายด่าน */}
                     <div className="grid-2">
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label style={{ fontSize: '0.85rem' }}>ชื่อนายด่าน:</label>
@@ -811,7 +833,32 @@ export default function Home() {
                         />
                       </div>
                     </div>
-                    
+
+                    {/* 2. ผู้อำนวยการส่วนบริการ */}
+                    <div className="grid-2">
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ชื่อผู้อำนวยการส่วนบริการ:</label>
+                        <input 
+                          type="text" 
+                          value={visDirectorName} 
+                          onChange={e => setVisDirectorName(e.target.value)} 
+                          placeholder="เช่น นายพิภพ พุทธสุข"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem' }}>ตำแหน่งผู้อำนวยการส่วนบริการ:</label>
+                        <input 
+                          type="text" 
+                          value={visDirectorPosition} 
+                          onChange={e => setVisDirectorPosition(e.target.value)} 
+                          placeholder="เช่น ผู้อำนวยการส่วนบริการศุลกากร"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
+                        />
+                      </div>
+                    </div>
+
+                    {/* 3. หัวหน้าฝ่ายบริการฯ 2 */}
                     <div className="grid-2">
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label style={{ fontSize: '0.85rem' }}>ชื่อหัวหน้าฝ่ายบริการฯ 2:</label>
@@ -834,25 +881,26 @@ export default function Home() {
                         />
                       </div>
                     </div>
-                    
+
+                    {/* 4. นิติกร */}
                     <div className="grid-2">
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.85rem' }}>ชื่อผู้อำนวยการส่วนบริการ:</label>
+                        <label style={{ fontSize: '0.85rem' }}>ชื่อนิติกร:</label>
                         <input 
                           type="text" 
-                          value={visDirectorName} 
-                          onChange={e => setVisDirectorName(e.target.value)} 
-                          placeholder="เช่น นายพิภพ พุทธสุข"
+                          value={visLegalName} 
+                          onChange={e => setVisLegalName(e.target.value)} 
+                          placeholder="เช่น นายสุทิน ภูเดช"
                           style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
                         />
                       </div>
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.85rem' }}>ตำแหน่งผู้อำนวยการส่วนบริการ:</label>
+                        <label style={{ fontSize: '0.85rem' }}>ตำแหน่งนิติกร:</label>
                         <input 
                           type="text" 
-                          value={visDirectorPosition} 
-                          onChange={e => setVisDirectorPosition(e.target.value)} 
-                          placeholder="เช่น ผู้อำนวยการส่วนบริการศุลกากร"
+                          value={visLegalPosition} 
+                          onChange={e => setVisLegalPosition(e.target.value)} 
+                          placeholder="เช่น นิติกรชำนาญการ"
                           style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} 
                         />
                       </div>
@@ -879,14 +927,14 @@ export default function Home() {
                     <button
                       type="button"
                       className="btn-select btn-save"
-                      onClick={() => {
+                      onClick={async () => {
                           localStorage.setItem('proposer_name', proposerName);
                           localStorage.setItem('proposer_position', proposerPosition);
                           localStorage.setItem('approver_selection', approverSelection);
                           localStorage.setItem('approver_1_name', approver1Name);
                           localStorage.setItem('approver_2_name', approver2Name);
                           
-                          // Save VIS specific settings
+                          // Save VIS specific settings to localStorage
                           localStorage.setItem('vis_legal_name', visLegalName);
                           localStorage.setItem('vis_legal_position', visLegalPosition);
                           localStorage.setItem('vis_chief_name', visChiefName);
@@ -896,7 +944,33 @@ export default function Home() {
                           localStorage.setItem('vis_director_name', visDirectorName);
                           localStorage.setItem('vis_director_position', visDirectorPosition);
 
-                          showToast('บันทึกการตั้งค่าเรียบร้อยแล้ว!');
+                          // Save MY VIS officer settings to Cloud
+                          try {
+                            const cloudRes = await fetch('/api/vis-settings', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                vis_chief_name: visChiefName,
+                                vis_chief_position: visChiefPosition,
+                                vis_director_name: visDirectorName,
+                                vis_director_position: visDirectorPosition,
+                                vis_head_service_name: visHeadServiceName,
+                                vis_head_service_position: visHeadServicePosition,
+                                vis_legal_name: visLegalName,
+                                vis_legal_position: visLegalPosition,
+                              })
+                            });
+                            const cloudData = await cloudRes.json();
+                            if (cloudData.success) {
+                              showToast(cloudData.cloud ? 'บันทึกการตั้งค่าลงระบบ Cloud เรียบร้อยแล้ว!' : 'บันทึกการตั้งค่าเรียบร้อยแล้ว!');
+                            } else {
+                              showToast('บันทึกการตั้งค่าเรียบร้อยแล้ว!');
+                            }
+                          } catch (err) {
+                            console.warn('Cloud save error:', err);
+                            showToast('บันทึกการตั้งค่าในเครื่องเรียบร้อยแล้ว!');
+                          }
+
                           setShowConfig(false);
                         }}
                     >
