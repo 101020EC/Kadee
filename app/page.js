@@ -725,17 +725,18 @@ export default function Home() {
                     <i className="fa-solid fa-user-pen" style={{ marginRight: '6px' }}></i> ข้อมูลเจ้าหน้าที่ผู้เสนอรายงาน
                   </h4>
                   <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-                    <div className="form-group">
-                      <label>ชื่อผู้เสนอรายงาน:</label>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.85rem' }}>ชื่อผู้เสนอรายงาน:</label>
                       <input 
                         type="text" 
                         value={proposerName}
                         onChange={handlePropNameChange}
                         placeholder="เช่น นายทด ลอง"
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
                       />
                     </div>
-                    <div className="form-group">
-                      <label>ตำแหน่งผู้เสนอรายงาน:</label>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.85rem' }}>ตำแหน่งผู้เสนอรายงาน:</label>
                       <select 
                         value={proposerPosition}
                         onChange={handlePropPosChange}
@@ -743,9 +744,9 @@ export default function Home() {
                           backgroundColor: 'var(--input-bg)',
                           border: '1px solid var(--input-border)',
                           borderRadius: '10px',
-                          padding: '0.75rem 1rem',
+                          padding: '0.4rem 0.8rem',
                           color: 'var(--text-main)',
-                          fontSize: '0.95rem',
+                          fontSize: '0.85rem',
                           fontFamily: 'inherit'
                         }}
                       >
