@@ -1,39 +1,24 @@
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+import { db } from '@/app/lib/firebaseAdmin';
 
 /**
- * บันทึก log ลงตาราง app_logs ใน Supabase
- * ถ้ายังไม่ได้ตั้งค่า env (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY) จะข้ามเงียบๆ
- * และถ้าบันทึกไม่สำเร็จจะไม่ทำให้ request หลักพัง
+ * บันทึก log ลง Firestore ใน collection 'app_logs'
+ * ถ้ายังไม่ได้ตั้งค่า env หรือมีข้อผิดพลาด จะข้ามเงียบๆ ไม่ให้กระทบการทำงานหลัก
  */
 export async function logEvent(event, status, detail = {}, error = null) {
-  if (!SUPABASE_URL || !SERVICE_KEY) return;
-  // ดึง proposer_name และ template ออกมาเป็นคอลัมน์แยก ที่เหลือเก็บใน detail (jsonb)
   const { proposer_name = null, template = null, ...restDetail } = detail;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_logs`, {
-      method: 'POST',
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal'
-      },
-      body: JSON.stringify({
+    if (db) {
+      await db.collection('app_logs').add({
         proposer_name,
         template,
         event,
         status,
         detail: restDetail,
-        error
-      }),
-      signal: AbortSignal.timeout(3000)
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.warn('logEvent failed with status:', res.status, errText);
+        error: error || null,
+        created_at: new Date().toISOString()
+      });
     }
   } catch (e) {
-    console.warn('logEvent failed:', e.message);
+    console.warn('logEvent to Firestore failed:', e.message);
   }
 }

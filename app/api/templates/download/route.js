@@ -1,19 +1,17 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { db } from '@/app/lib/firebaseAdmin';
 
 const TEMPLATES = {
   thai_vehicle: {
-    filename: 'PTK.docx',
-    url: 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/PTK.docx'
+    filename: 'PTK.docx'
   },
   violation: {
-    filename: 'MY.docx',
-    url: 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/MY.docx'
+    filename: 'MY.docx'
   },
   vis: {
-    filename: 'VIS.docx',
-    url: 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/VIS.docx'
+    filename: 'VIS.docx'
   }
 };
 
@@ -26,27 +24,30 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Invalid template type' }, { status: 400 });
     }
 
-    const { filename, url } = TEMPLATES[type];
+    const { filename } = TEMPLATES[type];
     let fileBuffer;
 
-    // Try fetching from Supabase first
-    try {
-      const fetchUrl = `${url}?t=${Date.now()}`;
-      console.log(`Downloading template from Supabase: ${fetchUrl}`);
-      const response = await fetch(fetchUrl, { cache: 'no-store' });
-      if (response.ok) {
-        const arrayBuffer = await response.arrayBuffer();
-        fileBuffer = Buffer.from(arrayBuffer);
-      } else {
-        throw new Error(`Supabase returned status: ${response.status}`);
+    // 1. Try to fetch custom template from Firestore first
+    if (db) {
+      try {
+        const docRef = db.collection('templates').doc(type);
+        const docSnap = await docRef.get();
+        if (docSnap.exists && docSnap.data().file_data) {
+          fileBuffer = Buffer.from(docSnap.data().file_data, 'base64');
+          console.log(`Serving template ${type} from Firestore.`);
+        }
+      } catch (cloudErr) {
+        console.warn(`Fetch template ${type} from Firestore failed:`, cloudErr.message);
       }
-    } catch (fetchError) {
-      console.warn(`Fetch template from Supabase failed (${fetchError.message}), falling back to local file: public/${filename}`);
+    }
+
+    // 2. Local file fallback if Firestore document not present
+    if (!fileBuffer) {
       const filePath = path.join(process.cwd(), 'public', filename);
       if (fs.existsSync(filePath)) {
         fileBuffer = fs.readFileSync(filePath);
       } else {
-        throw new Error(`Failed to download from cloud and no local fallback found.`);
+        throw new Error(`Template file public/${filename} not found.`);
       }
     }
 

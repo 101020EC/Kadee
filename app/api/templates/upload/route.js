@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { db } from '@/app/lib/firebaseAdmin';
 
 const TEMPLATES = {
   thai_vehicle: 'PTK.docx',
@@ -16,7 +17,6 @@ export async function POST(request) {
     const type = formData.get('type');
 
     // 1. Authenticate
-    // ไม่มีรหัสสำรองในโค้ด: ถ้ายังไม่ตั้ง env ให้ปฏิเสธไปเลย ดีกว่าเปิดให้เขียนทับเทมเพลตได้เงียบๆ
     const adminPassword = process.env.TEMPLATE_ADMIN_PASSWORD;
     if (!adminPassword) {
       console.error('TEMPLATE_ADMIN_PASSWORD is not set — template replacement is disabled');
@@ -37,41 +37,28 @@ export async function POST(request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 2. Upload to Supabase Storage if configured
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    let uploadedToCloud = false;
+    let savedToCloud = false;
     let cloudError = null;
 
-    if (supabaseUrl && serviceRoleKey) {
-      const uploadUrl = `${supabaseUrl}/storage/v1/object/Template/${filename}`;
-      console.log(`Uploading replaced template to Supabase Storage: ${uploadUrl}`);
+    // 2. Save template file to Firestore as Base64 string
+    if (db) {
       try {
-        const response = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
-            'x-upsert': 'true', // Overwrite existing file
-          },
-          body: buffer
-        });
-
-        if (response.ok) {
-          uploadedToCloud = true;
-          console.log(`Successfully uploaded ${filename} to Supabase.`);
-        } else {
-          const errText = await response.text();
-          throw new Error(`Supabase returned: ${response.status} - ${errText}`);
-        }
+        const base64Data = buffer.toString('base64');
+        await db.collection('templates').doc(type).set({
+          filename,
+          file_data: base64Data,
+          size_bytes: buffer.length,
+          updated_at: new Date().toISOString()
+        }, { merge: true });
+        savedToCloud = true;
+        console.log(`Successfully saved template ${type} (${filename}) to Firestore.`);
       } catch (err) {
-        console.error('Supabase upload failed:', err.message);
+        console.error('Firestore template save failed:', err.message);
         cloudError = err.message;
       }
     }
 
-    // 3. Dual-write to local public folder (fallback / development environment)
+    // 3. Dual-write to local public folder (for local dev / fallback)
     let savedLocally = false;
     try {
       const filePath = path.join(process.cwd(), 'public', filename);
@@ -79,21 +66,22 @@ export async function POST(request) {
       fs.writeFileSync(filePath, buffer);
       savedLocally = true;
     } catch (localErr) {
-      console.warn('Failed to write local file (expected on read-only serverless environments):', localErr.message);
+      console.warn('Failed to write local file (expected in read-only environment):', localErr.message);
     }
 
-    // Return status
-    if (uploadedToCloud || savedLocally) {
+    if (savedToCloud || savedLocally) {
       return NextResponse.json({
         success: true,
-        message: 'อัปเดตเทมเพลตเรียบร้อยแล้ว',
-        cloud: uploadedToCloud,
+        message: savedToCloud 
+          ? 'อัปเดตเทมเพลตขึ้นระบบ Cloud (Firestore) เรียบร้อยแล้ว'
+          : 'อัปเดตเทมเพลตในไฟล์เครื่องเรียบร้อยแล้ว',
+        cloud: savedToCloud,
         local: savedLocally,
         cloudError
       });
     }
 
-    throw new Error('ไม่สามารถบันทึกไฟล์ได้ ทั้งระบบ Cloud และ Local ล้มเหลว');
+    throw new Error('ไม่สามารถบันทึกไฟล์เทมเพลตได้ ทั้งระบบ Cloud และ Local');
 
   } catch (error) {
     console.error('Template upload API error:', error);

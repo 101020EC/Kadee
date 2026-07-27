@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { db } from '@/app/lib/firebaseAdmin';
 
 const SETTINGS_FILE_NAME = 'vis_settings.json';
 
@@ -22,16 +23,13 @@ const DEFAULT_VIS_SETTINGS = {
 
 export async function GET() {
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    // 1. Try to fetch from Supabase Storage if configured
-    if (supabaseUrl && serviceRoleKey) {
+    // 1. Try to fetch from Firestore if initialized
+    if (db) {
       try {
-        const fileUrl = `${supabaseUrl}/storage/v1/object/public/Template/${SETTINGS_FILE_NAME}?t=${Date.now()}`;
-        const response = await fetch(fileUrl, { cache: 'no-store' });
-        if (response.ok) {
-          const cloudData = await response.json();
+        const docRef = db.collection('settings').doc('vis');
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          const cloudData = docSnap.data();
           return NextResponse.json({
             success: true,
             source: 'cloud',
@@ -39,7 +37,7 @@ export async function GET() {
           });
         }
       } catch (cloudErr) {
-        console.warn('Failed to fetch settings from Supabase:', cloudErr.message);
+        console.warn('Failed to fetch settings from Firestore:', cloudErr.message);
       }
     }
 
@@ -94,42 +92,22 @@ export async function POST(request) {
       updated_at: new Date().toISOString()
     };
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
     let uploadedToCloud = false;
     let cloudError = null;
 
-    // 1. Upload to Supabase Storage if configured
-    if (supabaseUrl && serviceRoleKey) {
-      const uploadUrl = `${supabaseUrl}/storage/v1/object/Template/${SETTINGS_FILE_NAME}`;
-      console.log(`Saving settings to Supabase Storage: ${uploadUrl}`);
+    // 1. Save to Firestore if initialized
+    if (db) {
       try {
-        const response = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
-            'x-upsert': 'true',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          uploadedToCloud = true;
-          console.log(`Successfully saved ${SETTINGS_FILE_NAME} to Supabase Cloud.`);
-        } else {
-          const errText = await response.text();
-          throw new Error(`Supabase returned status: ${response.status} - ${errText}`);
-        }
+        await db.collection('settings').doc('vis').set(payload, { merge: true });
+        uploadedToCloud = true;
+        console.log('Successfully saved vis settings to Firestore.');
       } catch (err) {
-        console.error('Supabase upload for settings failed:', err.message);
+        console.error('Firestore upload for settings failed:', err.message);
         cloudError = err.message;
       }
     }
 
-    // 2. Dual-write to local public folder (fallback / local dev)
+    // 2. Dual-write to local public folder
     let savedLocally = false;
     try {
       const filePath = path.join(process.cwd(), 'public', SETTINGS_FILE_NAME);
@@ -143,7 +121,7 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         message: uploadedToCloud 
-          ? 'บันทึกข้อมูลตั้งค่าบนระบบ Cloud เรียบร้อยแล้ว'
+          ? 'บันทึกข้อมูลตั้งค่าบนระบบ Cloud (Firestore) เรียบร้อยแล้ว'
           : 'บันทึกข้อมูลตั้งค่าในไฟล์เครื่องเรียบร้อยแล้ว',
         cloud: uploadedToCloud,
         local: savedLocally,

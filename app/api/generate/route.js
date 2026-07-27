@@ -1,55 +1,71 @@
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/app/lib/logger';
+import { db } from '@/app/lib/firebaseAdmin';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import fs from 'fs';
 import path from 'path';
 
-const DEFAULT_TEMPLATE_URL = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/MY.docx';
-
 export async function POST(request) {
+  let data;
   try {
-    const data = await request.json();
+    data = await request.json();
     
     if (!data) {
       return NextResponse.json({ error: 'No data provided' }, { status: 400 });
     }
     
-    // Determine the template URL
-    const templateUrl = data.template_url || DEFAULT_TEMPLATE_URL;
-    let templateBuffer;
+    // Determine template type and filename
+    const templateUrl = data.template_url || 'MY.docx';
+    const lowerUrl = templateUrl.toLowerCase();
     
-    // Optimize: if it is a local URL, read directly from the filesystem
-    if (templateUrl.includes('localhost:') || templateUrl.includes('127.0.0.1:')) {
-      const filename = templateUrl.split('/').pop();
-      console.log(`Reading local template file: public/${filename}`);
-      const filePath = path.join(process.cwd(), 'public', filename);
-      templateBuffer = fs.readFileSync(filePath);
-    } else {
-      console.log(`Fetching template from: ${templateUrl}`);
+    let templateType = 'violation';
+    let filename = 'MY.docx';
+    let templateName = 'MY ผิดพิธีการ';
+
+    if (lowerUrl.includes('ptk')) {
+      templateType = 'thai_vehicle';
+      filename = 'PTK.docx';
+      templateName = 'รถไทย';
+    } else if (lowerUrl.includes('vis')) {
+      templateType = 'vis';
+      filename = 'VIS.docx';
+      templateName = 'MY VIS';
+    }
+
+    let templateBuffer;
+
+    // 1. Try fetching custom template from Firestore
+    if (db) {
       try {
-        // Fetch the Word template file from Supabase Storage (bypassing CDN cache using a timestamp query param)
-        const fetchUrl = templateUrl.includes('supabase.co') 
-          ? `${templateUrl}?t=${Date.now()}` 
-          : templateUrl;
-        const response = await fetch(fetchUrl, { cache: 'no-store' });
+        const docRef = db.collection('templates').doc(templateType);
+        const docSnap = await docRef.get();
+        if (docSnap.exists && docSnap.data().file_data) {
+          templateBuffer = Buffer.from(docSnap.data().file_data, 'base64');
+          console.log(`Using custom template '${templateType}' from Firestore.`);
+        }
+      } catch (cloudErr) {
+        console.warn(`Fetch template '${templateType}' from Firestore failed:`, cloudErr.message);
+      }
+    }
+
+    // 2. Fallback to local filesystem template
+    if (!templateBuffer) {
+      const localFilePath = path.join(process.cwd(), 'public', filename);
+      if (fs.existsSync(localFilePath)) {
+        console.log(`Reading local template file: public/${filename}`);
+        templateBuffer = fs.readFileSync(localFilePath);
+      } else if (templateUrl.startsWith('http://') || templateUrl.startsWith('https://')) {
+        console.log(`Fetching template from URL: ${templateUrl}`);
+        const response = await fetch(templateUrl, { cache: 'no-store' });
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer();
           templateBuffer = Buffer.from(arrayBuffer);
         } else {
-          throw new Error(`Supabase returned status: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch cloud template: ${response.status} ${response.statusText}`);
         }
-      } catch (fetchError) {
-        console.warn(`Fetch from Supabase failed (${fetchError.message}), falling back to local files...`);
-        const filename = templateUrl.split('/').pop();
-        const filePath = path.join(process.cwd(), 'public', filename);
-        if (fs.existsSync(filePath)) {
-          console.log(`Local fallback success: Reading public/${filename}`);
-          templateBuffer = fs.readFileSync(filePath);
-        } else {
-          // Re-throw if local file does not exist either
-          throw new Error(`Failed to fetch cloud template (${fetchError.message}) and no local fallback found.`);
-        }
+      } else {
+        throw new Error(`Template file public/${filename} not found.`);
       }
     }
     
@@ -74,17 +90,7 @@ export async function POST(request) {
     });
     
     const caseNumberStr = (data.case_number || 'Output').replace(/[\/\\]/g, '_');
-    const filename = `Memo_${caseNumberStr}.docx`;
-
-    let templateName = 'ไม่ทราบแน่ชัด';
-    const lowerUrl = templateUrl.toLowerCase();
-    if (lowerUrl.includes('ptk')) {
-      templateName = 'รถไทย';
-    } else if (lowerUrl.includes('my')) {
-      templateName = 'MY ผิดพิธีการ';
-    } else if (lowerUrl.includes('vis')) {
-      templateName = 'MY VIS';
-    }
+    const outFilename = `Memo_${caseNumberStr}.docx`;
 
     await logEvent('generate', 'success', {
       template: templateName,
@@ -98,8 +104,7 @@ export async function POST(request) {
     return new Response(outBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        // RFC 5987 encoding — HTTP headers reject non-Latin1 chars (e.g. Thai case numbers)
-        'Content-Disposition': `attachment; filename="output.docx"; filename*=UTF-8''${encodeURIComponent(filename)}`
+        'Content-Disposition': `attachment; filename="output.docx"; filename*=UTF-8''${encodeURIComponent(outFilename)}`
       }
     });
     
