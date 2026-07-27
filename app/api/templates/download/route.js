@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import { db } from '@/app/lib/firebaseAdmin';
+import { getTemplateBuffer } from '@/app/lib/templateCache';
 
 const TEMPLATES = {
   thai_vehicle: {
@@ -25,31 +23,7 @@ export async function GET(request) {
     }
 
     const { filename } = TEMPLATES[type];
-    let fileBuffer;
-
-    // 1. Try to fetch custom template from Firestore first
-    if (db) {
-      try {
-        const docRef = db.collection('templates').doc(type);
-        const docSnap = await docRef.get();
-        if (docSnap.exists && docSnap.data().file_data) {
-          fileBuffer = Buffer.from(docSnap.data().file_data, 'base64');
-          console.log(`Serving template ${type} from Firestore.`);
-        }
-      } catch (cloudErr) {
-        console.warn(`Fetch template ${type} from Firestore failed:`, cloudErr.message);
-      }
-    }
-
-    // 2. Local file fallback if Firestore document not present
-    if (!fileBuffer) {
-      const filePath = path.join(process.cwd(), 'public', filename);
-      if (fs.existsSync(filePath)) {
-        fileBuffer = fs.readFileSync(filePath);
-      } else {
-        throw new Error(`Template file public/${filename} not found.`);
-      }
-    }
+    const fileBuffer = await getTemplateBuffer(type, filename);
 
     return new Response(fileBuffer, {
       headers: {

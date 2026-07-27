@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { db } from '@/app/lib/firebaseAdmin';
+import { setTemplateCache } from '@/app/lib/templateCache';
 
 const TEMPLATES = {
   thai_vehicle: 'PTK.docx',
@@ -70,6 +71,9 @@ export async function POST(request) {
     }
 
     if (savedToCloud || savedLocally) {
+      // Immediately update in-memory cache
+      setTemplateCache(type, buffer, savedToCloud ? 'Firestore (Uploaded)' : 'Local (Uploaded)');
+
       return NextResponse.json({
         success: true,
         message: savedToCloud 

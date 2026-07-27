@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/app/lib/logger';
-import { db } from '@/app/lib/firebaseAdmin';
+import { getTemplateBuffer } from '@/app/lib/templateCache';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import fs from 'fs';
-import path from 'path';
 
 export async function POST(request) {
   let data;
@@ -33,41 +31,8 @@ export async function POST(request) {
       templateName = 'MY VIS';
     }
 
-    let templateBuffer;
-
-    // 1. Try fetching custom template from Firestore
-    if (db) {
-      try {
-        const docRef = db.collection('templates').doc(templateType);
-        const docSnap = await docRef.get();
-        if (docSnap.exists && docSnap.data().file_data) {
-          templateBuffer = Buffer.from(docSnap.data().file_data, 'base64');
-          console.log(`Using custom template '${templateType}' from Firestore.`);
-        }
-      } catch (cloudErr) {
-        console.warn(`Fetch template '${templateType}' from Firestore failed:`, cloudErr.message);
-      }
-    }
-
-    // 2. Fallback to local filesystem template
-    if (!templateBuffer) {
-      const localFilePath = path.join(process.cwd(), 'public', filename);
-      if (fs.existsSync(localFilePath)) {
-        console.log(`Reading local template file: public/${filename}`);
-        templateBuffer = fs.readFileSync(localFilePath);
-      } else if (templateUrl.startsWith('http://') || templateUrl.startsWith('https://')) {
-        console.log(`Fetching template from URL: ${templateUrl}`);
-        const response = await fetch(templateUrl, { cache: 'no-store' });
-        if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer();
-          templateBuffer = Buffer.from(arrayBuffer);
-        } else {
-          throw new Error(`Failed to fetch cloud template: ${response.status} ${response.statusText}`);
-        }
-      } else {
-        throw new Error(`Template file public/${filename} not found.`);
-      }
-    }
+    // Load template using In-Memory Cache (RAM cache) or fallback to Firestore/Local
+    const templateBuffer = await getTemplateBuffer(templateType, filename, templateUrl);
     
     // Load the document using PizZip and Docxtemplater
     const zip = new PizZip(templateBuffer);
