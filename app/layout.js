@@ -33,26 +33,15 @@ export const viewport = {
   userScalable: false,
 };
 
-// หน้านี้ render ฝั่งเซิร์ฟเวอร์ ถ้ารอ useEffect อ่าน localStorage ผู้ใช้จะเห็นธีมม่วง
-// วาบหนึ่งเฟรมก่อนสลับเป็นเขียว/ฟ้า จึงต้องตั้ง data-system ให้เสร็จก่อน paint แรก
-// แพตเทิร์นเดียวกับที่เว็บทั่วไปใช้กันโหมดมืดกระพริบ
-const THEME_INIT = `
-try {
-  var s = localStorage.getItem('active_system');
-  if (s === 'violation' || s === 'vis' || s === 'thai_vehicle') {
-    document.documentElement.dataset.system = s;
-  }
-} catch (e) {}
-`;
+// เดิมมีสคริปต์อ่าน localStorage มาตั้ง data-system ก่อน paint แรก เพื่อกันธีมม่วงวาบ
+// ก่อนสลับเป็นเขียว/ฟ้า — ตอนนี้ไม่ต้องใช้แล้ว เพราะทุกครั้งที่เข้าเว็บใหม่จะเริ่มที่
+// รถไทย (ธีมม่วง) เสมอ ซึ่งตรงกับที่เซิร์ฟเวอร์ render มาอยู่แล้ว
 
 export default function RootLayout({ children }) {
-  // suppressHydrationWarning เพราะ THEME_INIT เติม data-system ลงบน <html> ก่อน React hydrate
-  // ทำให้ attribute ฝั่งเซิร์ฟเวอร์กับฝั่งไคลเอนต์ไม่ตรงกันโดยตั้งใจ
   return (
-    <html lang="th" suppressHydrationWarning className={`${outfit.variable} ${notoSansThai.variable}`}>
+    <html lang="th" className={`${outfit.variable} ${notoSansThai.variable}`}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
-        {/* ค่าเริ่มต้นคือ --bg-color ของธีมม่วง page.js อัปเดตให้ตรงธีมหลัง mount */}
+        {/* ค่าเริ่มต้นคือ --bg-color ของธีมม่วง page.js อัปเดตให้ตรงธีมเมื่อสลับแท็บ */}
         <meta name="theme-color" content="#f3f1f8" />
       </head>
       <body>

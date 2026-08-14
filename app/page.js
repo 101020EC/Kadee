@@ -240,31 +240,17 @@ export default function Home() {
   }, [appState]);
 
   // ธีมสีทั้งเว็บผูกกับระบบที่เลือก — data-system บน <html> ไปเลือกบล็อก token ใน globals.css
-  // สคริปต์ใน layout.js ตั้งค่านี้ไว้ก่อน hydration แล้ว ตรงนี้คือการตามให้ตรงหลังจากนั้น
   //
-  // ต้องประกาศ effect นี้ "ก่อน" effect ที่อ่านค่าที่จำไว้ และต้องข้ามรอบแรกด้วย themeRestored
-  // เพราะ effect ในคอมโพเนนต์เดียวกันทำงานตามลำดับที่ประกาศ ถ้าตัวเขียนได้ทำงานก่อน
-  // มันจะทับ localStorage ด้วยค่าตั้งต้น 'thai_vehicle' และทับ data-system ที่สคริปต์ตั้งไว้
-  // ตัวอ่านที่ทำงานทีหลังจะอ่านเจอแต่ค่าที่เพิ่งถูกทับ = ธีมที่จำไว้หายทุกครั้งที่รีเฟรช
-  const themeRestored = useRef(false);
-
+  // จงใจไม่จำระบบที่เลือกไว้ข้ามการเข้าใช้งาน: เข้าเว็บใหม่ทุกครั้งเริ่มที่รถไทยเสมอ
+  // ตรงกับที่เซิร์ฟเวอร์ render มา จึงไม่มีธีมวาบสลับตอนโหลด และไม่ต้องมีสคริปต์
+  // กันกระพริบใน layout.js อีก
   useEffect(() => {
-    if (!themeRestored.current) return;
     document.documentElement.dataset.system = activeSystem;
-    localStorage.setItem('active_system', activeSystem);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
       meta.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim());
     }
   }, [activeSystem]);
-
-  // อ่านธีมที่จำไว้ครั้งก่อน ค่าที่ layout.js เขียนไว้บน <html> คือแหล่งความจริง
-  // (อ่านจากตรงนั้นแทน localStorage โดยตรง จะได้ไม่หลุดกันถ้าค่าในที่เก็บเสีย)
-  useEffect(() => {
-    const saved = document.documentElement.dataset.system;
-    themeRestored.current = true;
-    if (saved && SYSTEMS.some(s => s.key === saved)) setActiveSystem(saved);
-  }, []);
 
   // สลับระบบ + เปลี่ยนธีม
   // เส้นทางหลัก: View Transitions API วาดวงกลมแผ่จากจุดที่กด
