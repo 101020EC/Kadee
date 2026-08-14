@@ -316,7 +316,16 @@ export default function Home() {
       root.classList.remove('theme-hold', 'theme-switching');
     };
 
-    if (typeof document.startViewTransition === 'function') {
+    // Safari สร้างทรานซิชันได้ รายงาน ready ผ่าน และ getAnimations() ก็บอกว่าแอนิเมชัน
+    // วิ่งอยู่ แต่ไม่วาด clip-path ของวงกลมให้จริง ภาพจึงสลับทันทีแบบไม่มีอะไรคั่น
+    // = อาการกะพริบ และแยกด้วย feature detection ไม่ได้เพราะทุกอย่างรายงานว่าปกติ
+    // จึงเปิดวงกลมเฉพาะเอนจินที่ยืนยันแล้วว่าวาดให้จริง (Chromium — Chrome/Edge)
+    // ที่เหลือใช้ครอสเฟด 450ms ของเส้นทางสำรอง ซึ่งนุ่มพอกันและไม่มีกะพริบ
+    const isChromium = navigator.userAgentData?.brands?.some(
+      b => /Chromium|Google Chrome|Microsoft Edge/i.test(b.brand)
+    ) ?? false;
+
+    if (typeof document.startViewTransition === 'function' && isChromium) {
       const rect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX || rect.left + rect.width / 2;
       const y = event.clientY || rect.top + rect.height / 2;
@@ -326,7 +335,7 @@ export default function Home() {
       root.style.setProperty('--vt-y', `${y}px`);
       root.style.setProperty('--vt-r', `${r}px`);
 
-      dbg('startViewTransition: มี');
+      dbg('เอนจิน: Chromium → ใช้วงกลม');
       armFallback();
       const transition = document.startViewTransition(() => flushSync(applySystem));
 
@@ -369,7 +378,7 @@ export default function Home() {
       return;
     }
 
-    dbg('startViewTransition: ไม่มี → ใช้เส้นทางสำรอง');
+    dbg(`เอนจิน: ${isChromium ? 'Chromium' : 'ไม่ใช่ Chromium (เช่น Safari)'} / startViewTransition: ${typeof document.startViewTransition === 'function' ? 'มี' : 'ไม่มี'} → ใช้ครอสเฟด`);
     armFallback();
     applySystem();
     releaseFallback();
