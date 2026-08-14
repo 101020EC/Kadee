@@ -262,8 +262,17 @@ export default function Home() {
     const root = document.documentElement;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    if (reduceMotion) {
+    // สีทั้งหน้ามาจาก data-system บน <html> ไม่ใช่จาก markup ที่ React วาด จึงต้องเขียนลง DOM
+    // ตรงนี้เลย ห้ามรอ useEffect ซึ่งเป็น passive effect ที่รันหลัง paint —
+    // ถ้ารอ View Transitions จะจับภาพ "ใหม่" ไปตั้งแต่ตอนที่สียังเป็นของเดิม
+    // วงกลมก็จะแผ่ออกโดยไม่มีอะไรเปลี่ยน แล้วสีค่อยกระโดดทีเดียวตอนทรานซิชันจบ
+    const applySystem = () => {
+      root.setAttribute('data-system', key);
       setActiveSystem(key);
+    };
+
+    if (reduceMotion) {
+      applySystem();
       return;
     }
 
@@ -277,8 +286,12 @@ export default function Home() {
       root.style.setProperty('--vt-y', `${y}px`);
       root.style.setProperty('--vt-r', `${r}px`);
       root.classList.add('vt-active');
-      const transition = document.startViewTransition(() => flushSync(() => setActiveSystem(key)));
-      transition.finished.finally(() => root.classList.remove('vt-active'));
+      const transition = document.startViewTransition(() => flushSync(applySystem));
+      // finished จะ reject เมื่อทรานซิชันถูกยกเลิก (กดสลับรัวจนอันเก่าถูกตัด หรือแท็บถูกซ่อน)
+      // ต้องรับไว้เอง ไม่งั้นกลายเป็น unhandled rejection โผล่ใน console ทุกครั้ง
+      transition.finished
+        .catch(() => {})
+        .finally(() => root.classList.remove('vt-active'));
       return;
     }
 
@@ -286,7 +299,7 @@ export default function Home() {
     // กับ background-image เป็น property ที่ transition ไม่ได้
     root.style.setProperty('--hero-tint-prev', getComputedStyle(root).getPropertyValue('--hero-tint').trim());
     root.classList.add('theme-switching', 'theme-hold');
-    setActiveSystem(key);
+    applySystem();
     // ถอด theme-hold เฟรมถัดไปเพื่อให้ ::after เริ่มเฟดออก
     // ส่วน theme-switching ต้องค้างจนสีไล่เสร็จ ไม่งั้นสีจะกระโดดกลางทาง
     requestAnimationFrame(() => {
