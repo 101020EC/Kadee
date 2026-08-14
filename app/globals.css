@@ -1,18 +1,57 @@
+/* ===== ธีมสีตามระบบที่เลือกในแถบแท็บ =====
+   สีเน้นทุกจุดในเว็บมาจาก --accent-rgb ตัวเดียว (เดิม hardcode rgba(123,44,191,α) 38 จุด)
+   การเปลี่ยนธีมจึงเป็นแค่การทับค่า token ในบล็อก [data-system] ข้างล่าง
+   ห้ามเขียนสีเน้นเป็น hex/rgba ตรงๆ ในไฟล์นี้อีก ไม่งั้นจุดนั้นจะค้างเป็นม่วงตอนสลับธีม */
 :root {
-    --bg-color: #f3f1f8; /* Soft grey-purple background to match design layout but keep original purple tone */
-    --card-bg: #ffffff; /* Solid white card for clean flat modern dashboard feel */
-    --card-border: rgba(123, 44, 191, 0.05);
+    /* รถไทย (thai_vehicle) — ธีมม่วงเดิม เป็นค่าตั้งต้นเมื่อยังไม่มี data-system */
+    --accent-rgb: 123, 44, 191;
     --accent-primary: #7b2cbf;
     --accent-secondary: #5a189a;
-    --accent-glow: rgba(123, 44, 191, 0.08);
+    --hero-tint: transparent; /* โปร่ง = ไม่แตะรูป hero ต้นฉบับ */
+    --bg-color: #f3f1f8; /* Soft grey-purple background to match design layout but keep original purple tone */
+    --input-bg: #f6f5fc; /* Soft purple-grey background for inputs */
+    --success: #00c853;
+    --success-rgb: 0, 200, 83;
+    /* พื้นแถบแท็บบนหน้าอัปโหลด — เกือบขาวอมสีธีม ต้องทึบพอให้อ่านตัวหนังสือออกบนรูป hero */
+    --tabs-bg-hero: #f2effa;
+
+    /* ไม่ขึ้นกับธีม */
+    --card-bg: #ffffff; /* Solid white card for clean flat modern dashboard feel */
     --text-main: #14121d; /* Very dark charcoal for high contrast modern look */
     --text-muted: #646273;
-    --success: #00c853;
-    --error: #d50000;
-    --input-bg: #f6f5fc; /* Soft purple-grey background for inputs */
+    --error: #d50000; /* แดงเตือนคงที่ทุกธีม สีเตือนไม่ควรขึ้นกับบริบท */
     --input-border: rgba(0, 0, 0, 0.04);
-    --input-focus: #7b2cbf;
     --card-shadow: 0 20px 50px rgba(90, 80, 140, 0.04), 0 2px 5px rgba(0, 0, 0, 0.01), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+    /* derive จาก --accent-rgb ทั้งหมด */
+    --card-border: rgba(var(--accent-rgb), 0.05);
+    --accent-glow: rgba(var(--accent-rgb), 0.08);
+    --input-focus: var(--accent-primary);
+}
+
+/* MY ผิดพิธีการ — โทนเขียว */
+:root[data-system="violation"] {
+    --accent-rgb: 15, 127, 82;
+    --accent-primary: #0f7f52;
+    --accent-secondary: #06653c;
+    --hero-tint: #0f7f52;
+    --bg-color: #f3f8f6;
+    --input-bg: #f6fbf9;
+    --tabs-bg-hero: #eff9f4;
+    /* เขียวสถานะ "ลากไฟล์มาวางได้" จะกลืนกับธีมเขียว จึงสลับเป็นส้มอำพันให้ยังอ่านออก */
+    --success: #f59e0b;
+    --success-rgb: 245, 158, 11;
+}
+
+/* MY VIS — โทนฟ้า */
+:root[data-system="vis"] {
+    --accent-rgb: 11, 116, 196;
+    --accent-primary: #0b74c4;
+    --accent-secondary: #005e9c;
+    --hero-tint: #0b74c4;
+    --bg-color: #f3f5f8;
+    --input-bg: #f6f9fb;
+    --tabs-bg-hero: #eef5fb;
 }
 
 * {
@@ -61,11 +100,11 @@ body {
     background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(123, 44, 191, 0.15);
+    background: rgba(var(--accent-rgb), 0.15);
     border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(123, 44, 191, 0.3);
+    background: rgba(var(--accent-rgb), 0.3);
 }
 
 /* Ambient Background Glows
@@ -102,45 +141,70 @@ body {
     z-index: 10;
 }
 
-/* System Tab Styles */
+/* System Tab Styles
+   แคปซูลที่ active เป็น ::before ของตัวแถบ (ไม่ใช่พื้นหลังของปุ่ม) จะได้ไถลไปตำแหน่งใหม่
+   แทนที่จะกระพริบสลับปุ่ม — ตำแหน่งมาจาก --tab-index ที่ตั้งจาก React */
 .system-tabs {
+    position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: rgba(123, 44, 191, 0.05);
+    background: rgba(var(--accent-rgb), 0.05);
     padding: 0.35rem;
     border-radius: 100px; /* Perfect pill shape */
     gap: 0.25rem;
     margin: 0 auto 3rem auto;
-    width: fit-content;
+    width: 100%;
+    max-width: 520px;
     border: none;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
+.system-tabs::before {
+    content: '';
+    position: absolute;
+    top: 0.35rem;
+    bottom: 0.35rem;
+    left: 0.35rem;
+    /* 3 ปุ่มกว้างเท่ากัน หักช่องไฟ 0.25rem สองช่องออกก่อนแล้วหารสาม */
+    width: calc((100% - 0.7rem - 0.5rem) / 3);
+    border-radius: 100px;
+    background: var(--accent-primary);
+    box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.22);
+    transform: translateX(calc(var(--tab-index, 0) * (100% + 0.25rem)));
+    transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.42s ease,
+                box-shadow 0.42s ease;
+    pointer-events: none;
+}
+
 .tab-btn {
+    position: relative;
+    z-index: 1;
+    flex: 1; /* สามปุ่มกว้างเท่ากัน แคปซูลที่ไถลจึงมีขนาดคงที่ */
+    min-width: 0;
     background: transparent;
     border: none;
     color: var(--text-muted);
-    padding: 0.75rem 2.2rem;
+    padding: 0.75rem 0.6rem;
     font-size: 0.95rem;
     font-weight: 700;
     border-radius: 100px;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    white-space: nowrap;
 }
 
 .tab-btn:hover {
     color: var(--text-main);
-    background: rgba(255, 255, 255, 0.4);
 }
 
-.tab-btn.active {
+.tab-btn.active,
+.tab-btn.active:hover {
     color: #ffffff;
-    background: var(--accent-primary);
-    box-shadow: 0 6px 16px rgba(123, 44, 191, 0.22);
 }
 
 header {
@@ -156,7 +220,7 @@ header h1 {
     letter-spacing: -1.2px;
     margin-bottom: 0.6rem;
     line-height: 1.1;
-    background: linear-gradient(135deg, #14121d 40%, #7b2cbf 100%);
+    background: linear-gradient(135deg, #14121d 40%, var(--accent-primary) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -165,7 +229,7 @@ header p {
     color: var(--accent-primary);
     font-size: 0.95rem;
     font-weight: 700;
-    background: rgba(123, 44, 191, 0.08);
+    background: rgba(var(--accent-rgb), 0.08);
     display: inline-block;
     padding: 0.4rem 1.4rem;
     border-radius: 100px;
@@ -185,7 +249,7 @@ header p {
 
 /* Drag & Drop Upload Zone */
 .upload-zone {
-    border: 2px dashed rgba(123, 44, 191, 0.18);
+    border: 2px dashed rgba(var(--accent-rgb), 0.18);
     border-radius: 24px;
     padding: 5.5rem 2rem;
     text-align: center;
@@ -199,14 +263,14 @@ header p {
 
 .upload-zone:hover {
     border-color: var(--accent-primary);
-    background: rgba(123, 44, 191, 0.02);
-    box-shadow: 0 12px 35px rgba(123, 44, 191, 0.05);
+    background: rgba(var(--accent-rgb), 0.02);
+    box-shadow: 0 12px 35px rgba(var(--accent-rgb), 0.05);
     transform: translateY(-2px);
 }
 
 .upload-zone.dragover {
     border-color: var(--success);
-    background: rgba(0, 200, 83, 0.03);
+    background: rgba(var(--success-rgb), 0.03);
     transform: scale(1.01);
 }
 
@@ -214,7 +278,7 @@ header p {
     font-size: 2.2rem;
     color: var(--accent-primary);
     margin: 0 auto 1.5rem auto;
-    background: rgba(123, 44, 191, 0.08);
+    background: rgba(var(--accent-rgb), 0.08);
     width: 72px;
     height: 72px;
     border-radius: 50%;
@@ -228,7 +292,7 @@ header p {
     background: var(--accent-primary);
     color: #ffffff;
     transform: translateY(-4px) scale(1.05);
-    box-shadow: 0 8px 20px rgba(123, 44, 191, 0.2);
+    box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.2);
 }
 
 .upload-zone.dragover .upload-icon {
@@ -264,7 +328,7 @@ header p {
     font-weight: 700;
     border-radius: 14px;
     cursor: pointer;
-    box-shadow: 0 6px 18px rgba(123, 44, 191, 0.15);
+    box-shadow: 0 6px 18px rgba(var(--accent-rgb), 0.15);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     display: inline-flex;
     align-items: center;
@@ -274,7 +338,7 @@ header p {
 .btn-select:hover {
     transform: translateY(-2px);
     background: var(--accent-secondary);
-    box-shadow: 0 10px 25px rgba(123, 44, 191, 0.25);
+    box-shadow: 0 10px 25px rgba(var(--accent-rgb), 0.25);
 }
 
 /* Loading / Processing Indicator */
@@ -289,12 +353,12 @@ header p {
 .spinner {
     width: 64px;
     height: 64px;
-    border: 4.5px solid rgba(123, 44, 191, 0.06);
+    border: 4.5px solid rgba(var(--accent-rgb), 0.06);
     border-top: 4.5px solid var(--accent-primary);
     border-radius: 50%;
     animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
     margin-bottom: 2rem;
-    box-shadow: 0 0 25px rgba(123, 44, 191, 0.1);
+    box-shadow: 0 0 25px rgba(var(--accent-rgb), 0.1);
 }
 
 @keyframes spin {
@@ -332,7 +396,7 @@ header p {
 
 .section-title i, .section-title svg {
     color: var(--accent-primary);
-    background: rgba(123, 44, 191, 0.06);
+    background: rgba(var(--accent-rgb), 0.06);
     width: 36px;
     height: 36px;
     display: flex;
@@ -340,7 +404,7 @@ header p {
     justify-content: center;
     border-radius: 10px;
     font-size: 1rem;
-    box-shadow: 0 2px 8px rgba(123, 44, 191, 0.04);
+    box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.04);
 }
 
 .section-title:first-of-type {
@@ -393,7 +457,7 @@ header p {
     outline: none;
     border-color: var(--input-focus);
     background-color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(123, 44, 191, 0.12);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
 }
 
 /* Action Buttons Area */
@@ -439,7 +503,7 @@ header p {
     font-weight: 700;
     border-radius: 14px;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(123, 44, 191, 0.18);
+    box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.18);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     align-items: center;
@@ -449,7 +513,7 @@ header p {
 .btn-generate:hover {
     transform: translateY(-2px);
     background: var(--accent-secondary);
-    box-shadow: 0 12px 30px rgba(123, 44, 191, 0.28);
+    box-shadow: 0 12px 30px rgba(var(--accent-rgb), 0.28);
 }
 
 .btn-generate:disabled {
@@ -487,7 +551,7 @@ header p {
 
 /* Configuration Panel Styling */
 .config-panel {
-    border: 1px solid rgba(123, 44, 191, 0.06);
+    border: 1px solid rgba(var(--accent-rgb), 0.06);
     background: #ffffff;
     border-radius: 24px;
     padding: 0;
@@ -511,7 +575,7 @@ header p {
 
 .config-header:hover {
     color: var(--text-main);
-    background: rgba(123, 44, 191, 0.02); /* Subtle hover indicator on entire bar */
+    background: rgba(var(--accent-rgb), 0.02); /* Subtle hover indicator on entire bar */
 }
 
 .config-body {
@@ -557,7 +621,7 @@ header p {
     outline: none;
     border-color: var(--input-focus);
     background-color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(123, 44, 191, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
 }
 
 /* ==========================================================================
@@ -578,15 +642,46 @@ body.hero-bg {
    ซึ่งบังคับให้เบราว์เซอร์วาดพื้นหลังใหม่ทุกเฟรมที่เลื่อน (สาเหตุหลักของอาการหน่วงบนมือถือ)
    เลเยอร์นี้ถูก raster ครั้งเดียวแล้ว compositor ตรึงไว้เอง จึงแทบไม่มีต้นทุน
    รูปโฮสต์เองเป็น WebP 23KB (เดิมดึงจาก Unsplash 271KB) */
-body.hero-bg::before {
+/* รูป hero ถูกย้อมด้วยสีธีมผ่าน background-blend-mode: color
+   = เอาเฉพาะความสว่างกับรูปทรงจากรูป ส่วนเฉดสีมาจาก --hero-tint ล้วน
+   จงใจไม่ใช้ filter: hue-rotate() เพราะรูปต้นฉบับมีสองโทนห่างกันคงที่ ~87°
+   การหมุนสีจึงพาแถบสีที่สองติดมาเสมอ — ธีมฟ้าจะได้แถบล่างเป็นสีเขียวไปชนกับธีม MY ผิดพิธีการ
+   ธีมม่วง --hero-tint: transparent จึงไม่ถูกย้อม ได้รูปต้นฉบับเดิมเป๊ะ
+
+   ::after คือเลเยอร์ของธีมเดิมที่ค้างไว้เพื่อเฟดออก (เส้นทางสำรองของเบราว์เซอร์ที่ไม่มี
+   View Transitions API) จำเป็นเพราะ background-blend-mode/background-image
+   เป็น property ที่ transition ไม่ได้ จึงต้องซ้อนสองชั้นแล้วไล่ opacity แทน */
+body.hero-bg::before,
+body.hero-bg::after {
     content: '';
     position: fixed;
     inset: 0;
     z-index: -1;
     background: linear-gradient(rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.45)),
+                linear-gradient(var(--hero-tint), var(--hero-tint)),
                 url('/hero-bg.webp') no-repeat center center;
     background-size: cover;
+    background-blend-mode: normal, color, normal;
     pointer-events: none;
+}
+
+/* ::after วาดทีหลังจึงอยู่บน ::before — ปกติโปร่งใสสนิท ไม่มีผลใดๆ */
+body.hero-bg::after {
+    --hero-tint: var(--hero-tint-prev, transparent);
+    opacity: 0;
+    /* จงใจไม่ใช้ cubic-bezier(0.16, 1, 0.3, 1) เหมือนที่อื่นในไฟล์ เพราะโค้งนั้นเทน้ำหนัก
+       ไปช่วงต้นมาก (ผ่านไป 11% ของเวลา ค่าไปแล้วครึ่งทาง) ภาพเดิมจะวูบหายทันที
+       แล้วค้างจืดๆ ที่เหลือ — ครอสเฟดต้องการโค้งที่สมดุลกว่า */
+    transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ขณะสลับธีม: โชว์ธีมเดิมทับไว้ก่อนแบบไม่มีทรานซิชัน พอถอด class ออกเฟรมถัดไป
+   opacity จะไล่ลง 0 เผยธีมใหม่ที่ ::before วาดรออยู่แล้ว
+   แยก class จาก .theme-switching เพราะตัวนั้นต้องค้างยาวตลอด 450ms ที่สีกำลังไล่
+   ส่วนตัวนี้ต้องถูกถอดทันทีในเฟรมถัดไปเพื่อให้การเฟดเริ่มทำงาน */
+html.theme-hold body.hero-bg::after {
+    opacity: 1;
+    transition: none;
 }
 
 body.hero-bg .container {
@@ -618,8 +713,8 @@ body.hero-bg .system-tabs {
     grid-row: 1;
     width: 100%;
     margin-bottom: 0.8rem; /* Pushes the card further up */
-    background: rgba(242, 239, 250, 0.98); /* Less transparent solid background for readability */
-    border: 1px solid rgba(123, 44, 191, 0.15);
+    background: var(--tabs-bg-hero); /* Less transparent solid background for readability */
+    border: 1px solid rgba(var(--accent-rgb), 0.15);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
@@ -656,7 +751,7 @@ body.hero-bg .card.upload-card {
     margin-bottom: 1.2rem;
     text-align: left;
     white-space: nowrap; /* Single line */
-    background: linear-gradient(135deg, #14121d 30%, #7b2cbf 100%) !important;
+    background: linear-gradient(135deg, #14121d 30%, var(--accent-primary) 100%) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
 }
@@ -683,7 +778,7 @@ body.hero-bg .card.upload-card {
 /* Light Glassmorphic Upload Card */
 .card.upload-card {
     background: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(123, 44, 191, 0.12);
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
     box-shadow: 0 35px 70px rgba(90, 80, 140, 0.08);
@@ -692,8 +787,8 @@ body.hero-bg .card.upload-card {
 }
 
 .card.upload-card .system-tabs {
-    background: rgba(242, 239, 250, 0.98); /* Less transparent solid background for readability */
-    border: 1px solid rgba(123, 44, 191, 0.15);
+    background: var(--tabs-bg-hero); /* Less transparent solid background for readability */
+    border: 1px solid rgba(var(--accent-rgb), 0.15);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03);
     margin-bottom: 1rem;
 }
@@ -716,13 +811,13 @@ body.hero-bg .card.upload-card {
 .card.upload-card .tab-btn.active {
     color: #ffffff;
     background: var(--accent-primary);
-    box-shadow: 0 4px 15px rgba(123, 44, 191, 0.25);
+    box-shadow: 0 4px 15px rgba(var(--accent-rgb), 0.25);
 }
 
 /* Left-aligned and Smaller Upload Zone */
 .card.upload-card .upload-zone {
-    border: 1.5px dashed rgba(123, 44, 191, 0.2);
-    background: rgba(123, 44, 191, 0.02);
+    border: 1.5px dashed rgba(var(--accent-rgb), 0.2);
+    background: rgba(var(--accent-rgb), 0.02);
     border-radius: 20px;
     padding: 2.2rem 1.6rem; /* Reduced vertical padding by >20% */
     display: flex;
@@ -734,7 +829,7 @@ body.hero-bg .card.upload-card {
 
 .card.upload-card .upload-zone:hover {
     border-color: var(--accent-primary);
-    background: rgba(123, 44, 191, 0.04);
+    background: rgba(var(--accent-rgb), 0.04);
 }
 
 .card.upload-card .upload-icon {
@@ -742,7 +837,7 @@ body.hero-bg .card.upload-card {
     width: 52px;
     height: 52px;
     font-size: 1.5rem;
-    background: rgba(123, 44, 191, 0.08);
+    background: rgba(var(--accent-rgb), 0.08);
     color: var(--accent-primary);
 }
 
@@ -770,20 +865,20 @@ body.hero-bg .card.upload-card {
     border-radius: 10px;
     background: var(--accent-primary);
     color: #ffffff;
-    box-shadow: 0 4px 12px rgba(123, 44, 191, 0.15);
+    box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.15);
     margin: 0;
 }
 
 .card.upload-card .btn-select:hover {
     background: var(--accent-secondary);
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(123, 44, 191, 0.25);
+    box-shadow: 0 6px 18px rgba(var(--accent-rgb), 0.25);
 }
 
 /* Config Panel in Light Theme */
 .card.upload-card .config-panel {
-    background: rgba(123, 44, 191, 0.02);
-    border: 1px solid rgba(123, 44, 191, 0.06);
+    background: rgba(var(--accent-rgb), 0.02);
+    border: 1px solid rgba(var(--accent-rgb), 0.06);
     box-shadow: none;
     margin-top: 1.5rem;
     padding: 0;
@@ -799,7 +894,7 @@ body.hero-bg .card.upload-card {
 
 .card.upload-card .config-header:hover {
     color: #14121d;
-    background: rgba(123, 44, 191, 0.04);
+    background: rgba(var(--accent-rgb), 0.04);
 }
 
 .card.upload-card .config-body {
@@ -822,7 +917,7 @@ body.hero-bg .card.upload-card {
 .card.upload-card .config-body input:focus {
     background: #ffffff;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(123, 44, 191, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
 }
 
 .card.upload-card .config-body-title {
@@ -969,3 +1064,83 @@ body.hero-bg .card.upload-card {
     .card.upload-card .config-actions .btn-hide { padding: 0.55rem 0.6rem; }
 }
 
+
+/* ===== เอฟเฟกต์ตอนสลับธีม =====
+
+   เส้นทางหลัก: View Transitions API — วงกลมแผ่ออกจากจุดที่ผู้ใช้กด
+   เส้นทางสำรอง: ไล่สีทีละส่วน + ครอสเฟดรูป hero (ดู body.hero-bg::after)
+
+   ห้ามให้สองเส้นทางทำงานพร้อมกัน ไม่งั้นจะเห็นสีไล่ซ้อนกับวงกลมที่แผ่ออก
+   จึงคุมด้วย class บน <html>: .vt-active ปิดการไล่สี, .theme-switching เปิดครอสเฟด */
+
+/* เส้นทางสำรอง — ไล่สีทุกพื้นผิวที่มาจาก token
+   ระบุ property ตรงๆ ไม่ใช้ all เพราะ all จะไปกวน transform/opacity ของแอนิเมชันอื่นในหน้า */
+html.theme-switching body,
+html.theme-switching body * {
+    transition: background-color 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* เส้นทางหลัก — View Transitions คุมภาพทั้งหน้าอยู่แล้ว ต้องปิดการไล่สีไม่ให้ซ้อน */
+html.vt-active body,
+html.vt-active body * {
+    transition: none !important;
+}
+
+/* ปิดครอสเฟดดีฟอลต์ของ View Transitions แล้วใช้วงกลมขยายแทน
+   ภาพเก่าอยู่นิ่งเป็นฉากหลัง ภาพใหม่ถูก clip เป็นวงกลมที่โตขึ้นจากจุดที่กด */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+    z-index: 0;
+}
+
+::view-transition-new(root) {
+    z-index: 1;
+    animation: theme-reveal 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes theme-reveal {
+    from {
+        clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%));
+    }
+    to {
+        clip-path: circle(var(--vt-r, 150%) at var(--vt-x, 50%) var(--vt-y, 50%));
+    }
+}
+
+/* ผู้ใช้ที่ตั้งค่าลดการเคลื่อนไหว: เปลี่ยนธีมทันที ไม่มีวงกลม ไม่มีการไล่สี
+   (แอนิเมชันเดิมของแอป เช่น spinner กับ fadeIn ก็ถูกตัดด้วย) */
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none !important;
+    }
+
+    html.theme-switching body,
+    html.theme-switching body * {
+        transition: none !important;
+    }
+
+    body.hero-bg::after {
+        transition: none !important;
+    }
+
+    .system-tabs::before {
+        transition: none !important;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+    }
+}
