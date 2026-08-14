@@ -296,12 +296,24 @@ export default function Home() {
       // กับ background-image เป็น property ที่ transition ไม่ได้
       root.style.setProperty('--hero-tint-prev', getComputedStyle(root).getPropertyValue('--hero-tint').trim());
       root.classList.add('theme-switching', 'theme-hold');
+      // กันเหนียว: ถ้าไม่มีใครมาสั่งปล่อยหรือปิด ห้ามให้ theme-hold ค้างจอถาวร
+      // เพราะมันตรึงวอลเปเปอร์ธีมเดิมไว้ทับของใหม่
+      window.setTimeout(() => root.classList.remove('theme-hold', 'theme-switching'), 1000);
+    };
+
+    // เริ่มเฟด — เรียกเมื่อรู้แล้วว่าจะใช้เส้นทางสำรองจริง ไม่เรียกตั้งแต่ตอน arm
+    // เพราะถ้าวงกลมกำลังทำงาน ภาพ snapshot จะบังอยู่ การเฟดจะวิ่งทิ้งเปล่าอยู่ข้างหลัง
+    const releaseFallback = () => {
       // ถอด theme-hold เฟรมถัดไปเพื่อให้ ::after เริ่มเฟดออก
       // ส่วน theme-switching ต้องค้างจนสีไล่เสร็จ ไม่งั้นสีจะกระโดดกลางทาง
       requestAnimationFrame(() => {
         requestAnimationFrame(() => root.classList.remove('theme-hold'));
       });
       window.setTimeout(() => root.classList.remove('theme-switching'), 500);
+    };
+
+    const disarmFallback = () => {
+      root.classList.remove('theme-hold', 'theme-switching');
     };
 
     if (typeof document.startViewTransition === 'function') {
@@ -320,20 +332,32 @@ export default function Home() {
 
       transition.ready.then(
         () => {
-          // วงกลมทำงานจริง — ปิดการไล่สีของเส้นทางสำรองไม่ให้ซ้อนกัน
-          root.classList.add('vt-active');
-          root.classList.remove('theme-hold', 'theme-switching');
-          if (debug) {
-            const anims = document.getAnimations().filter(
-              a => a.effect && String(a.effect.pseudoElement || '').includes('view-transition')
-            );
-            dbg('ready: OK');
-            dbg(`anims: ${anims.length || 'ไม่มี'} ${anims.map(a => `${a.animationName || '?'}/${Math.round(a.effect.getComputedTiming().duration)}ms/${a.playState}`).join(', ')}`);
+          // ready ผ่านไม่ได้แปลว่าวงกลมจะขยับ — Safari สร้างทรานซิชันได้แต่ไม่เล่น
+          // แอนิเมชัน clip-path ที่เราเขียนทับไว้ ภาพจึงสลับทันทีแบบไม่มีอะไรคั่น
+          // จึงต้องเช็กว่ามีแอนิเมชันวิ่งอยู่จริงก่อน ค่อยปิดเส้นทางสำรองทิ้ง
+          const anims = document.getAnimations().filter(
+            a => a.effect && String(a.effect.pseudoElement || '').includes('view-transition')
+          );
+          const revealRunning = anims.some(
+            a => (a.playState === 'running' || a.playState === 'pending') &&
+                 a.effect.getComputedTiming().duration > 0
+          );
+
+          dbg(`ready: OK — anims ${anims.length || 'ไม่มี'} ${anims.map(a => `${a.animationName || '?'}/${Math.round(a.effect.getComputedTiming().duration)}ms/${a.playState}`).join(', ')}`);
+
+          if (revealRunning) {
+            root.classList.add('vt-active');
+            disarmFallback();
+            dbg('→ ใช้วงกลม (ปิดการไล่สี)');
+          } else {
+            releaseFallback();
+            dbg('→ วงกลมไม่ทำงาน ใช้เส้นทางสำรองแทน');
           }
         },
         (err) => {
           // ถูกข้าม — ปล่อยเส้นทางสำรองที่เตรียมไว้ทำงานแทน
-          dbg(`ready: ถูกข้าม (${err?.name || err})`);
+          releaseFallback();
+          dbg(`ready: ถูกข้าม (${err?.name || err}) → ใช้เส้นทางสำรอง`);
         }
       );
 
@@ -348,6 +372,7 @@ export default function Home() {
     dbg('startViewTransition: ไม่มี → ใช้เส้นทางสำรอง');
     armFallback();
     applySystem();
+    releaseFallback();
   };
 
   const handleVerifyAdminPassword = async () => {
