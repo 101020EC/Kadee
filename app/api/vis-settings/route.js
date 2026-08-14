@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { db } from '@/app/lib/firebaseAdmin';
+import { db, firebaseStatus } from '@/app/lib/firebaseAdmin';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +56,8 @@ export async function GET() {
         success: true,
         source: 'local',
         cloudAvailable: !!db,
+        // แนบมาเฉพาะตอน Firestore ใช้ไม่ได้ เพื่อบอกว่าค่า env เพี้ยนตรงไหน
+        cloudDiagnostics: db ? undefined : firebaseStatus,
         data: { ...DEFAULT_VIS_SETTINGS, ...localData }
       });
     }

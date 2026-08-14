@@ -3,6 +3,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 let app;
 let db = null;
+let initError = null;
 
 // ค่า private key ที่วางใน Vercel มักเพี้ยนได้หลายแบบ — ติดเครื่องหมายคำพูดครอบหัวท้าย
 // (ก๊อปมาจาก .env ทั้งบรรทัด), \n ถูก escape ซ้ำเป็น \\n, หรือมีช่องว่างท้ายค่า
@@ -66,14 +67,30 @@ if (projectId && clientEmail && privateKey) {
     }
     db = getFirestore(app);
   } catch (error) {
+    initError = error.message;
     console.error(
       'Firebase Admin initialization error:', error.message,
       '— Firestore is disabled, settings will not sync across machines.'
     );
   }
 } else {
-  console.warn('Firebase environment variables are missing.');
+  initError = 'Firebase environment variables are missing.';
+  console.warn(initError);
 }
+
+// รูปร่างของค่าที่ deployment มองเห็นจริง ๆ — ใช้ไล่ปัญหาจากภายนอกได้โดยไม่ต้องเปิด log
+// มีแต่ความยาวกับรูปแบบ ไม่มีเนื้อคีย์ออกไป
+export const firebaseStatus = {
+  ready: !!db,
+  hasProjectId: !!projectId,
+  hasClientEmail: !!clientEmail,
+  hasPrivateKey: !!privateKey,
+  keyLength: privateKey ? privateKey.length : 0,
+  keyStartsWithBegin: privateKey ? privateKey.startsWith('-----BEGIN') : false,
+  keyHasEnd: privateKey ? privateKey.includes('-----END') : false,
+  keyLineCount: privateKey ? privateKey.trimEnd().split('\n').length : 0,
+  initError
+};
 
 export { db };
 export default app;
