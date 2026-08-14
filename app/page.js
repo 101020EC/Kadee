@@ -102,6 +102,9 @@ export default function Home() {
   const [visDirectorName, setVisDirectorName] = useState('นายพิภพ พุทธสุข');
   const [visDirectorPosition, setVisDirectorPosition] = useState('ผู้อำนวยการส่วนบริการศุลกากร');
 
+  // การตั้งค่าจะแชร์ข้ามเครื่องได้ก็ต่อเมื่อ Firestore ใช้งานได้ — null = ยังไม่รู้ผล
+  const [cloudSyncOk, setCloudSyncOk] = useState(null);
+
   // Template Manager Admin Auth
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [verifiedPassword, setVerifiedPassword] = useState('');
@@ -161,9 +164,10 @@ export default function Home() {
     if (savedVisDirPos) setVisDirectorPosition(savedVisDirPos);
 
     // Fetch latest settings from Cloud API
-    fetch('/api/vis-settings')
+    fetch('/api/vis-settings', { cache: 'no-store' })
       .then(res => res.json())
       .then(resData => {
+        setCloudSyncOk(resData.cloudAvailable === true);
         if (resData.success && resData.data) {
           const d = resData.data;
           if (d.approver_selection) {
@@ -222,6 +226,7 @@ export default function Home() {
       })
       .catch(err => {
         console.warn('Could not fetch cloud settings:', err);
+        setCloudSyncOk(false);
       });
   }, []);
 
@@ -788,7 +793,30 @@ export default function Home() {
               </div>
               {showConfig && (
                 <div className="config-body" style={{ marginTop: '1.5rem' }}>
-                  
+
+                  {/* สถานะการซิงก์ — บอกว่าค่าที่บันทึกจะไปถึงเครื่องอื่นหรือไม่ */}
+                  {cloudSyncOk !== null && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      padding: '0.6rem 0.9rem',
+                      marginBottom: '1.2rem',
+                      borderRadius: '10px',
+                      fontSize: '0.8rem',
+                      lineHeight: 1.5,
+                      background: cloudSyncOk ? 'rgba(var(--accent-rgb), 0.12)' : 'rgba(234, 179, 8, 0.15)',
+                      color: cloudSyncOk ? 'var(--accent-primary)' : '#b45309'
+                    }}>
+                      <i className={cloudSyncOk ? 'fa-solid fa-cloud-arrow-up' : 'fa-solid fa-triangle-exclamation'} style={{ marginTop: '2px' }}></i>
+                      <span>
+                        {cloudSyncOk
+                          ? 'เชื่อมต่อระบบ Cloud แล้ว — กดบันทึกครั้งเดียว ทั้งผู้เสนอรายงาน ผู้อนุมัติ และเจ้าหน้าที่ MY VIS จะใช้ร่วมกันทุกเครื่อง'
+                          : 'ยังไม่ได้เชื่อมต่อระบบ Cloud — กดบันทึกแล้วค่าจะอยู่เฉพาะเครื่องนี้ เครื่องอื่นจะยังเห็นค่าเดิม'}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Proposer settings */}
                   <h4 style={{ fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.8rem', fontWeight: '700' }}>
                     <i className="fa-solid fa-user-pen" style={{ marginRight: '6px' }}></i> ข้อมูลเจ้าหน้าที่ผู้เสนอรายงาน
@@ -1014,7 +1042,8 @@ export default function Home() {
                           localStorage.setItem('vis_director_name', visDirectorName);
                           localStorage.setItem('vis_director_position', visDirectorPosition);
 
-                          // Save settings to Cloud
+                          // Save settings to Cloud — ทั้งผู้เสนอรายงาน ผู้อนุมัติ และเจ้าหน้าที่ MY VIS
+                          // ไปเป็นก้อนเดียวกันที่ Firestore settings/vis
                           try {
                             const cloudRes = await fetch('/api/vis-settings', {
                               method: 'POST',
@@ -1035,15 +1064,20 @@ export default function Home() {
                                 vis_legal_position: visLegalPosition,
                               })
                             });
-                            const cloudData = await cloudRes.json();
-                            if (cloudData.success) {
-                              showToast(cloudData.cloud ? 'บันทึกการตั้งค่าลงระบบ Cloud เรียบร้อยแล้ว!' : 'บันทึกการตั้งค่าเรียบร้อยแล้ว!');
+                            const cloudData = await cloudRes.json().catch(() => null);
+                            const savedToCloud = cloudRes.ok && cloudData?.success && cloudData.cloud === true;
+                            setCloudSyncOk(savedToCloud);
+
+                            if (savedToCloud) {
+                              showToast('บันทึกการตั้งค่าลงระบบ Cloud เรียบร้อยแล้ว! (ใช้ร่วมกันทุกเครื่อง)');
                             } else {
-                              showToast('บันทึกการตั้งค่าเรียบร้อยแล้ว!');
+                              console.warn('Cloud save failed:', cloudData?.cloudError || cloudRes.status);
+                              showToast('⚠️ บันทึกเฉพาะเครื่องนี้ ยังไม่ขึ้น Cloud — เครื่องอื่นจะยังเห็นค่าเดิม');
                             }
                           } catch (err) {
                             console.warn('Cloud save error:', err);
-                            showToast('บันทึกการตั้งค่าในเครื่องเรียบร้อยแล้ว!');
+                            setCloudSyncOk(false);
+                            showToast('⚠️ บันทึกเฉพาะเครื่องนี้ ยังไม่ขึ้น Cloud — เครื่องอื่นจะยังเห็นค่าเดิม');
                           }
 
                           setShowConfig(false);

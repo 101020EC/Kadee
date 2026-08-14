@@ -3,7 +3,12 @@ import fs from 'fs';
 import path from 'path';
 import { db } from '@/app/lib/firebaseAdmin';
 
+export const dynamic = 'force-dynamic';
+
 const SETTINGS_FILE_NAME = 'vis_settings.json';
+
+// ระบบไฟล์บน Vercel เป็น read-only — เขียนไฟล์ได้เฉพาะตอนรัน dev ในเครื่องเท่านั้น
+const CAN_WRITE_LOCAL_FILE = process.env.NODE_ENV !== 'production' && !process.env.VERCEL;
 
 const DEFAULT_VIS_SETTINGS = {
   approver_selection: 'approver_1',
@@ -33,6 +38,7 @@ export async function GET() {
           return NextResponse.json({
             success: true,
             source: 'cloud',
+            cloudAvailable: true,
             data: { ...DEFAULT_VIS_SETTINGS, ...cloudData }
           });
         }
@@ -49,6 +55,7 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         source: 'local',
+        cloudAvailable: !!db,
         data: { ...DEFAULT_VIS_SETTINGS, ...localData }
       });
     }
@@ -57,6 +64,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       source: 'default',
+      cloudAvailable: !!db,
       data: DEFAULT_VIS_SETTINGS
     });
   } catch (error) {
@@ -105,32 +113,43 @@ export async function POST(request) {
         console.error('Firestore upload for settings failed:', err.message);
         cloudError = err.message;
       }
+    } else {
+      cloudError = 'Firebase environment variables are missing on this deployment';
     }
 
-    // 2. Dual-write to local public folder
+    // 2. Dual-write to local public folder — dev เท่านั้น
     let savedLocally = false;
-    try {
-      const filePath = path.join(process.cwd(), 'public', SETTINGS_FILE_NAME);
-      fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf8');
-      savedLocally = true;
-    } catch (localErr) {
-      console.warn('Failed to write local vis_settings.json:', localErr.message);
+    if (CAN_WRITE_LOCAL_FILE) {
+      try {
+        const filePath = path.join(process.cwd(), 'public', SETTINGS_FILE_NAME);
+        fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf8');
+        savedLocally = true;
+      } catch (localErr) {
+        console.warn('Failed to write local vis_settings.json:', localErr.message);
+      }
     }
 
-    if (uploadedToCloud || savedLocally) {
+    // บันทึกไม่ขึ้น Cloud = เครื่องอื่นไม่เห็นการแก้ไข ต้องตอบกลับว่าล้มเหลว
+    // ไม่ใช่ success เพราะเขียนไฟล์ในเครื่องผ่าน
+    if (!uploadedToCloud) {
       return NextResponse.json({
-        success: true,
-        message: uploadedToCloud 
-          ? 'บันทึกข้อมูลตั้งค่าบนระบบ Cloud (Firestore) เรียบร้อยแล้ว'
-          : 'บันทึกข้อมูลตั้งค่าในไฟล์เครื่องเรียบร้อยแล้ว',
-        cloud: uploadedToCloud,
+        success: false,
+        cloud: false,
         local: savedLocally,
         cloudError,
+        error: 'บันทึกขึ้นระบบ Cloud ไม่สำเร็จ — การตั้งค่าจะมีผลเฉพาะเครื่องนี้',
         data: payload
-      });
+      }, { status: 503 });
     }
 
-    throw new Error('ไม่สามารถบันทึกข้อมูลได้ทั้งระบบ Cloud และ Local');
+    return NextResponse.json({
+      success: true,
+      message: 'บันทึกข้อมูลตั้งค่าบนระบบ Cloud (Firestore) เรียบร้อยแล้ว',
+      cloud: true,
+      local: savedLocally,
+      cloudError,
+      data: payload
+    });
 
   } catch (error) {
     console.error('Error saving settings:', error);
