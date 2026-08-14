@@ -105,10 +105,6 @@ export default function Home() {
   // การตั้งค่าจะแชร์ข้ามเครื่องได้ก็ต่อเมื่อ Firestore ใช้งานได้ — null = ยังไม่รู้ผล
   const [cloudSyncOk, setCloudSyncOk] = useState(null);
 
-  // กล่องรายงานสถานะ View Transitions ตอนสลับธีม เปิดด้วย ?vtdebug ต่อท้าย URL
-  // มีไว้ไล่ปัญหาข้ามเบราว์เซอร์ ปกติไม่แสดง
-  const [vtDebug, setVtDebug] = useState(null);
-
   // Template Manager Admin Auth
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [verifiedPassword, setVerifiedPassword] = useState('');
@@ -280,14 +276,6 @@ export default function Home() {
       return;
     }
 
-    const debug = window.location.search.includes('vtdebug');
-    const dbgLines = [];
-    const dbg = (line) => {
-      if (!debug) return;
-      dbgLines.push(line);
-      setVtDebug(dbgLines.join('\n'));
-    };
-
     // เตรียมเส้นทางสำรองไว้ก่อนเสมอ แล้วค่อยปิดทิ้งเมื่อรู้ว่าวงกลมทำงานจริง
     // เดิมใส่ vt-active (transition: none ทั้งหน้า) ตั้งแต่ก่อนเริ่ม ถ้าเบราว์เซอร์ข้าม
     // ทรานซิชันทิ้งก็จะไม่เหลืออะไรมาคั่นเลย = ธีมกระโดดพรวดเดียว (อาการบน Safari)
@@ -335,50 +323,30 @@ export default function Home() {
       root.style.setProperty('--vt-y', `${y}px`);
       root.style.setProperty('--vt-r', `${r}px`);
 
-      dbg('เอนจิน: Chromium → ใช้วงกลม');
       armFallback();
       const transition = document.startViewTransition(() => flushSync(applySystem));
 
       transition.ready.then(
         () => {
-          // ready ผ่านไม่ได้แปลว่าวงกลมจะขยับ — Safari สร้างทรานซิชันได้แต่ไม่เล่น
-          // แอนิเมชัน clip-path ที่เราเขียนทับไว้ ภาพจึงสลับทันทีแบบไม่มีอะไรคั่น
-          // จึงต้องเช็กว่ามีแอนิเมชันวิ่งอยู่จริงก่อน ค่อยปิดเส้นทางสำรองทิ้ง
-          const anims = document.getAnimations().filter(
-            a => a.effect && String(a.effect.pseudoElement || '').includes('view-transition')
-          );
-          const revealRunning = anims.some(
-            a => (a.playState === 'running' || a.playState === 'pending') &&
-                 a.effect.getComputedTiming().duration > 0
-          );
-
-          dbg(`ready: OK — anims ${anims.length || 'ไม่มี'} ${anims.map(a => `${a.animationName || '?'}/${Math.round(a.effect.getComputedTiming().duration)}ms/${a.playState}`).join(', ')}`);
-
-          if (revealRunning) {
-            root.classList.add('vt-active');
-            disarmFallback();
-            dbg('→ ใช้วงกลม (ปิดการไล่สี)');
-          } else {
-            releaseFallback();
-            dbg('→ วงกลมไม่ทำงาน ใช้เส้นทางสำรองแทน');
-          }
+          // วงกลมทำงานจริง — ปิดการไล่สีของเส้นทางสำรองไม่ให้ซ้อนกัน
+          root.classList.add('vt-active');
+          disarmFallback();
         },
-        (err) => {
-          // ถูกข้าม — ปล่อยเส้นทางสำรองที่เตรียมไว้ทำงานแทน
+        () => {
+          // ถูกข้าม (เช่นแท็บถูกซ่อน หรือกดสลับรัวจนอันเก่าถูกตัด)
+          // ปล่อยเส้นทางสำรองที่เตรียมไว้ทำงานแทน จะได้ไม่กระโดดพรวดเดียว
           releaseFallback();
-          dbg(`ready: ถูกข้าม (${err?.name || err}) → ใช้เส้นทางสำรอง`);
         }
       );
 
       // finished จะ reject เมื่อทรานซิชันถูกยกเลิก (กดสลับรัวจนอันเก่าถูกตัด หรือแท็บถูกซ่อน)
       // ต้องรับไว้เอง ไม่งั้นกลายเป็น unhandled rejection โผล่ใน console ทุกครั้ง
       transition.finished
-        .catch((err) => dbg(`finished: reject (${err?.name || err})`))
+        .catch(() => {})
         .finally(() => root.classList.remove('vt-active'));
       return;
     }
 
-    dbg(`เอนจิน: ${isChromium ? 'Chromium' : 'ไม่ใช่ Chromium (เช่น Safari)'} / startViewTransition: ${typeof document.startViewTransition === 'function' ? 'มี' : 'ไม่มี'} → ใช้ครอสเฟด`);
     armFallback();
     applySystem();
     releaseFallback();
@@ -722,17 +690,6 @@ export default function Home() {
 
   return (
     <div className="container">
-      {/* กล่องไล่ปัญหา View Transitions — โผล่เฉพาะเมื่อเปิดหน้าด้วย ?vtdebug */}
-      {vtDebug && (
-        <pre style={{
-          position: 'fixed', left: '10px', bottom: '10px', zIndex: 2000,
-          margin: 0, padding: '10px 12px', borderRadius: '10px',
-          background: 'rgba(0, 0, 0, 0.82)', color: '#7CFFB2',
-          font: '12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace',
-          whiteSpace: 'pre-wrap', maxWidth: '92vw'
-        }}>{vtDebug}</pre>
-      )}
-
       {/* Toast Notification */}
       {toast.show && (
         <div className="toast">
