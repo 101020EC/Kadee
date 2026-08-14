@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 
 const DEFAULT_URL_VIOLATION = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/MY.docx';
 const DEFAULT_URL_VIS = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/VIS.docx';
@@ -61,27 +62,12 @@ function filePlatePart(plate) {
   return joined.replace(/[\/\\:*?"<>|]/g, '');
 }
 
-// โลโก้รถสปอร์ตทึบ (ตามรูปต้นแบบ 1) — ใช้กับแท็บ MY VIS
-const CarSolidIcon = () => (
-  <svg viewBox="0 0 64 36" width="20" height="12" fill="currentColor" aria-hidden="true" style={{ marginRight: '8px', verticalAlign: '-1px' }}>
-    <path d="M3 24 c-2 -6 3 -11 11 -12 l9 -1 c4 -6 13 -9 21 -7 l3 6 c9 1 15 5 15 11 l-1 4 h-6 a8 8 0 0 0 -15 0 h-17 a8 8 0 0 0 -15 0 h-4 z" />
-    <circle cx="16" cy="28" r="5" />
-    <circle cx="47" cy="28" r="5" />
-  </svg>
-);
-
-// โลโก้รถเก๋งลายเส้น (ตามรูปต้นแบบ 2) — ใช้กับแท็บ MY ผิดพิธีการ
-const CarOutlineIcon = () => (
-  <svg viewBox="0 0 64 40" width="20" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true" style={{ marginRight: '8px', verticalAlign: '-1px' }}>
-    <path d="M4 30 c-1 -7 2 -12 7 -15 c6 -4 12 -6 20 -6 c8 0 15 3 20 8 c6 1 10 4 10 9 l-1 4 h-8" />
-    <path d="M22 30 h20 M4 30 h4" />
-    <circle cx="15" cy="30" r="6" />
-    <circle cx="15" cy="30" r="2.5" fill="currentColor" />
-    <circle cx="49" cy="30" r="6" />
-    <circle cx="49" cy="30" r="2.5" fill="currentColor" />
-    <path d="M18 15 c4 -3 8 -4 13 -4 l1 6 l-17 0 c0 0 1 -1 3 -2 z M35 11 c5 0 9 2 13 6 l-13 0 z" fill="currentColor" stroke="none" />
-  </svg>
-);
+// ลำดับแท็บ ใช้ทั้งวาดปุ่มและคำนวณตำแหน่งแคปซูลที่ไถล (--tab-index)
+const SYSTEMS = [
+  { key: 'thai_vehicle', label: 'รถไทย' },
+  { key: 'violation', label: 'MY ผิดพิธีการ' },
+  { key: 'vis', label: 'MY VIS' },
+];
 
 export default function Home() {
   const [activeSystem, setActiveSystem] = useState('thai_vehicle'); // 'violation' | 'vis' | 'thai_vehicle'
@@ -247,6 +233,76 @@ export default function Home() {
     }
     return () => document.body.classList.remove('hero-bg');
   }, [appState]);
+
+  // ธีมสีทั้งเว็บผูกกับระบบที่เลือก — data-system บน <html> ไปเลือกบล็อก token ใน globals.css
+  // สคริปต์ใน layout.js ตั้งค่านี้ไว้ก่อน hydration แล้ว ตรงนี้คือการตามให้ตรงหลังจากนั้น
+  //
+  // ต้องประกาศ effect นี้ "ก่อน" effect ที่อ่านค่าที่จำไว้ และต้องข้ามรอบแรกด้วย themeRestored
+  // เพราะ effect ในคอมโพเนนต์เดียวกันทำงานตามลำดับที่ประกาศ ถ้าตัวเขียนได้ทำงานก่อน
+  // มันจะทับ localStorage ด้วยค่าตั้งต้น 'thai_vehicle' และทับ data-system ที่สคริปต์ตั้งไว้
+  // ตัวอ่านที่ทำงานทีหลังจะอ่านเจอแต่ค่าที่เพิ่งถูกทับ = ธีมที่จำไว้หายทุกครั้งที่รีเฟรช
+  const themeRestored = useRef(false);
+
+  useEffect(() => {
+    if (!themeRestored.current) return;
+    document.documentElement.dataset.system = activeSystem;
+    localStorage.setItem('active_system', activeSystem);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim());
+    }
+  }, [activeSystem]);
+
+  // อ่านธีมที่จำไว้ครั้งก่อน ค่าที่ layout.js เขียนไว้บน <html> คือแหล่งความจริง
+  // (อ่านจากตรงนั้นแทน localStorage โดยตรง จะได้ไม่หลุดกันถ้าค่าในที่เก็บเสีย)
+  useEffect(() => {
+    const saved = document.documentElement.dataset.system;
+    themeRestored.current = true;
+    if (saved && SYSTEMS.some(s => s.key === saved)) setActiveSystem(saved);
+  }, []);
+
+  // สลับระบบ + เปลี่ยนธีม
+  // เส้นทางหลัก: View Transitions API วาดวงกลมแผ่จากจุดที่กด
+  // เส้นทางสำรอง: class theme-switching เปิดการไล่สี + ครอสเฟดรูป hero
+  // ห้ามทำสองอย่างพร้อมกัน ไม่งั้นสีจะไล่ซ้อนกับวงกลม
+  const switchSystem = (key, event) => {
+    if (key === activeSystem) return;
+
+    const root = document.documentElement;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      setActiveSystem(key);
+      return;
+    }
+
+    if (typeof document.startViewTransition === 'function') {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX || rect.left + rect.width / 2;
+      const y = event.clientY || rect.top + rect.height / 2;
+      // รัศมีต้องคลุมถึงมุมจอที่ไกลที่สุดจากจุดกด ไม่งั้นวงกลมจะหยุดโตก่อนเต็มจอ
+      const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+      root.style.setProperty('--vt-x', `${x}px`);
+      root.style.setProperty('--vt-y', `${y}px`);
+      root.style.setProperty('--vt-r', `${r}px`);
+      root.classList.add('vt-active');
+      const transition = document.startViewTransition(() => flushSync(() => setActiveSystem(key)));
+      transition.finished.finally(() => root.classList.remove('vt-active'));
+      return;
+    }
+
+    // ค้างสีธีมเดิมไว้ที่เลเยอร์ ::after เพื่อเฟดออก — จำเป็นเพราะ background-blend-mode
+    // กับ background-image เป็น property ที่ transition ไม่ได้
+    root.style.setProperty('--hero-tint-prev', getComputedStyle(root).getPropertyValue('--hero-tint').trim());
+    root.classList.add('theme-switching', 'theme-hold');
+    setActiveSystem(key);
+    // ถอด theme-hold เฟรมถัดไปเพื่อให้ ::after เริ่มเฟดออก
+    // ส่วน theme-switching ต้องค้างจนสีไล่เสร็จ ไม่งั้นสีจะกระโดดกลางทาง
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => root.classList.remove('theme-hold'));
+    });
+    window.setTimeout(() => root.classList.remove('theme-switching'), 500);
+  };
 
   const handleVerifyAdminPassword = async () => {
     try {
@@ -651,7 +707,7 @@ export default function Home() {
           <>
             <div className="hero-logo">
               <i className="fa-solid fa-file-pdf"></i>
-              <span>Buntuek</span>
+              <span>Kadee</span>
             </div>
             <h1 className="hero-title">PDF to บันทึก</h1>
             <p className="hero-desc">กรอกบันทึกข้อความอัตโนมัติด้วยไฟล์ PDF</p>
@@ -664,33 +720,26 @@ export default function Home() {
         )}
       </header>
 
-      {/* Tabs bar */}
+      {/* Tabs bar — ไม่มีไอคอนนำหน้า สามปุ่มกว้างเท่ากัน
+          แคปซูลที่ active คือ .system-tabs::before ที่ไถลตาม --tab-index */}
       {appState === 'upload' && (
-        <div className="system-tabs">
-          <button 
-            type="button" 
-            className={`tab-btn ${activeSystem === 'thai_vehicle' ? 'active' : ''}`}
-            onClick={() => setActiveSystem('thai_vehicle')}
-          >
-            <i className="fa-solid fa-car-side" style={{ marginRight: '8px' }}></i>
-            รถไทย
-          </button>
-          <button 
-            type="button" 
-            className={`tab-btn ${activeSystem === 'violation' ? 'active' : ''}`}
-            onClick={() => setActiveSystem('violation')}
-          >
-            <CarOutlineIcon />
-            MY ผิดพิธีการ
-          </button>
-          <button 
-            type="button" 
-            className={`tab-btn ${activeSystem === 'vis' ? 'active' : ''}`}
-            onClick={() => setActiveSystem('vis')}
-          >
-            <CarSolidIcon />
-            MY VIS
-          </button>
+        <div
+          className="system-tabs"
+          role="tablist"
+          style={{ '--tab-index': SYSTEMS.findIndex(s => s.key === activeSystem) }}
+        >
+          {SYSTEMS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={activeSystem === key}
+              className={`tab-btn ${activeSystem === key ? 'active' : ''}`}
+              onClick={e => switchSystem(key, e)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       )}
 
@@ -935,7 +984,7 @@ export default function Home() {
                       className="btn-select btn-template"
                       onClick={() => setShowTemplateModal(true)}
                       style={{
-                        background: 'rgba(123, 44, 191, 0.15)',
+                        background: 'rgba(var(--accent-rgb), 0.15)',
                         color: 'var(--accent-primary)',
                         border: 'none',
                         boxShadow: 'none'
@@ -1498,7 +1547,7 @@ export default function Home() {
                       <a 
                         href="/api/templates/download?type=thai_vehicle"
                         className="btn-select"
-                        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(123, 44, 191, 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
+                        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
                       >
                         <i className="fa-solid fa-download" style={{ marginRight: '4px' }}></i> Download
                       </a>
@@ -1528,7 +1577,7 @@ export default function Home() {
                       <a 
                         href="/api/templates/download?type=violation"
                         className="btn-select"
-                        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(123, 44, 191, 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
+                        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
                       >
                         <i className="fa-solid fa-download" style={{ marginRight: '4px' }}></i> Download
                       </a>
@@ -1558,7 +1607,7 @@ export default function Home() {
                       <a 
                         href="/api/templates/download?type=vis"
                         className="btn-select"
-                        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(123, 44, 191, 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
+                        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-primary)', border: 'none', boxShadow: 'none' }}
                       >
                         <i className="fa-solid fa-download" style={{ marginRight: '4px' }}></i> Download
                       </a>

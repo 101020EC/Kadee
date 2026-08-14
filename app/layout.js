@@ -22,7 +22,7 @@ const notoSansThai = Noto_Sans_Thai({
 });
 
 export const metadata = {
-  title: "Buntuek - ระบบกรอกบันทึกข้อความศุลกากรอัตโนมัติ",
+  title: "Kadee",
   description: "สกัดข้อมูลใบขนสินค้าพิเศษ PDF เพื่อนำมากรอกลงบันทึกข้อความศุลกากรโดยอัตโนมัติ",
 };
 
@@ -33,9 +33,28 @@ export const viewport = {
   userScalable: false,
 };
 
+// หน้านี้ render ฝั่งเซิร์ฟเวอร์ ถ้ารอ useEffect อ่าน localStorage ผู้ใช้จะเห็นธีมม่วง
+// วาบหนึ่งเฟรมก่อนสลับเป็นเขียว/ฟ้า จึงต้องตั้ง data-system ให้เสร็จก่อน paint แรก
+// แพตเทิร์นเดียวกับที่เว็บทั่วไปใช้กันโหมดมืดกระพริบ
+const THEME_INIT = `
+try {
+  var s = localStorage.getItem('active_system');
+  if (s === 'violation' || s === 'vis' || s === 'thai_vehicle') {
+    document.documentElement.dataset.system = s;
+  }
+} catch (e) {}
+`;
+
 export default function RootLayout({ children }) {
+  // suppressHydrationWarning เพราะ THEME_INIT เติม data-system ลงบน <html> ก่อน React hydrate
+  // ทำให้ attribute ฝั่งเซิร์ฟเวอร์กับฝั่งไคลเอนต์ไม่ตรงกันโดยตั้งใจ
   return (
-    <html lang="th" className={`${outfit.variable} ${notoSansThai.variable}`}>
+    <html lang="th" suppressHydrationWarning className={`${outfit.variable} ${notoSansThai.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        {/* ค่าเริ่มต้นคือ --bg-color ของธีมม่วง page.js อัปเดตให้ตรงธีมหลัง mount */}
+        <meta name="theme-color" content="#f3f1f8" />
+      </head>
       <body>
         {children}
       </body>
