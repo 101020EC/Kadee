@@ -21,6 +21,16 @@ function normalizePrivateKey(raw) {
 
   key = key.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n').trim();
 
+  // ประกอบ PEM ขึ้นใหม่ — กันกรณีบรรทัดในคีย์หายตอนก๊อปวาง (ขึ้นบรรทัดกลายเป็น
+  // ช่องว่าง หรือหายไปเลย) ซึ่งหัวท้ายยังดูปกติแต่ตัวคีย์ parse ไม่ผ่าน
+  const pem = key.match(/-----BEGIN ([A-Z ]+?)-----([\s\S]*?)-----END \1-----/);
+  if (pem) {
+    const [, label, rawBody] = pem;
+    const body = rawBody.replace(/\s+/g, '');
+    const lines = body.match(/.{1,64}/g) || [];
+    return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----\n`;
+  }
+
   return key + '\n';
 }
 
@@ -32,6 +42,11 @@ if (privateKey && !privateKey.startsWith('-----BEGIN')) {
   console.error(
     'FIREBASE_PRIVATE_KEY has an unexpected format — it must start with "-----BEGIN PRIVATE KEY-----". ' +
     'Paste the key without the surrounding quotes.'
+  );
+} else if (privateKey && !privateKey.includes('-----END')) {
+  console.error(
+    'FIREBASE_PRIVATE_KEY looks truncated — the closing "-----END PRIVATE KEY-----" line is missing. ' +
+    'Re-paste the full key value.'
   );
 }
 
