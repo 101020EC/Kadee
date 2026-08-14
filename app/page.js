@@ -798,20 +798,22 @@ export default function Home() {
                   {cloudSyncOk !== null && (
                     <div style={{
                       display: 'flex',
-                      alignItems: 'flex-start',
+                      alignItems: cloudSyncOk ? 'center' : 'flex-start',
+                      alignSelf: cloudSyncOk ? 'flex-start' : 'stretch',
                       gap: '8px',
-                      padding: '0.6rem 0.9rem',
-                      marginBottom: '1.2rem',
+                      maxWidth: '100%',
+                      padding: cloudSyncOk ? '0.35rem 0.75rem' : '0.6rem 0.9rem',
+                      marginBottom: cloudSyncOk ? 0 : '1.2rem',
                       borderRadius: '10px',
                       fontSize: '0.8rem',
                       lineHeight: 1.5,
                       background: cloudSyncOk ? 'rgba(var(--accent-rgb), 0.12)' : 'rgba(234, 179, 8, 0.15)',
                       color: cloudSyncOk ? 'var(--accent-primary)' : '#b45309'
                     }}>
-                      <i className={cloudSyncOk ? 'fa-solid fa-cloud-arrow-up' : 'fa-solid fa-triangle-exclamation'} style={{ marginTop: '2px' }}></i>
+                      <i className={cloudSyncOk ? 'fa-solid fa-cloud-arrow-up' : 'fa-solid fa-triangle-exclamation'} style={{ marginTop: cloudSyncOk ? 0 : '2px' }}></i>
                       <span>
                         {cloudSyncOk
-                          ? 'เชื่อมต่อระบบ Cloud แล้ว — กดบันทึกครั้งเดียว ทั้งผู้เสนอรายงาน ผู้อนุมัติ และเจ้าหน้าที่ MY VIS จะใช้ร่วมกันทุกเครื่อง'
+                          ? 'Cloud Synced'
                           : 'ยังไม่ได้เชื่อมต่อระบบ Cloud — กดบันทึกแล้วค่าจะอยู่เฉพาะเครื่องนี้ เครื่องอื่นจะยังเห็นค่าเดิม'}
                       </span>
                     </div>
