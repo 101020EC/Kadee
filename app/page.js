@@ -105,6 +105,10 @@ export default function Home() {
   // การตั้งค่าจะแชร์ข้ามเครื่องได้ก็ต่อเมื่อ Firestore ใช้งานได้ — null = ยังไม่รู้ผล
   const [cloudSyncOk, setCloudSyncOk] = useState(null);
 
+  // กล่องรายงานสถานะ View Transitions ตอนสลับธีม เปิดด้วย ?vtdebug ต่อท้าย URL
+  // มีไว้ไล่ปัญหาข้ามเบราว์เซอร์ ปกติไม่แสดง
+  const [vtDebug, setVtDebug] = useState(null);
+
   // Template Manager Admin Auth
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [verifiedPassword, setVerifiedPassword] = useState('');
@@ -276,6 +280,30 @@ export default function Home() {
       return;
     }
 
+    const debug = window.location.search.includes('vtdebug');
+    const dbgLines = [];
+    const dbg = (line) => {
+      if (!debug) return;
+      dbgLines.push(line);
+      setVtDebug(dbgLines.join('\n'));
+    };
+
+    // เตรียมเส้นทางสำรองไว้ก่อนเสมอ แล้วค่อยปิดทิ้งเมื่อรู้ว่าวงกลมทำงานจริง
+    // เดิมใส่ vt-active (transition: none ทั้งหน้า) ตั้งแต่ก่อนเริ่ม ถ้าเบราว์เซอร์ข้าม
+    // ทรานซิชันทิ้งก็จะไม่เหลืออะไรมาคั่นเลย = ธีมกระโดดพรวดเดียว (อาการบน Safari)
+    const armFallback = () => {
+      // ค้างสีธีมเดิมไว้ที่เลเยอร์ ::after เพื่อเฟดออก — จำเป็นเพราะ background-blend-mode
+      // กับ background-image เป็น property ที่ transition ไม่ได้
+      root.style.setProperty('--hero-tint-prev', getComputedStyle(root).getPropertyValue('--hero-tint').trim());
+      root.classList.add('theme-switching', 'theme-hold');
+      // ถอด theme-hold เฟรมถัดไปเพื่อให้ ::after เริ่มเฟดออก
+      // ส่วน theme-switching ต้องค้างจนสีไล่เสร็จ ไม่งั้นสีจะกระโดดกลางทาง
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => root.classList.remove('theme-hold'));
+      });
+      window.setTimeout(() => root.classList.remove('theme-switching'), 500);
+    };
+
     if (typeof document.startViewTransition === 'function') {
       const rect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX || rect.left + rect.width / 2;
@@ -285,27 +313,41 @@ export default function Home() {
       root.style.setProperty('--vt-x', `${x}px`);
       root.style.setProperty('--vt-y', `${y}px`);
       root.style.setProperty('--vt-r', `${r}px`);
-      root.classList.add('vt-active');
+
+      dbg('startViewTransition: มี');
+      armFallback();
       const transition = document.startViewTransition(() => flushSync(applySystem));
+
+      transition.ready.then(
+        () => {
+          // วงกลมทำงานจริง — ปิดการไล่สีของเส้นทางสำรองไม่ให้ซ้อนกัน
+          root.classList.add('vt-active');
+          root.classList.remove('theme-hold', 'theme-switching');
+          if (debug) {
+            const anims = document.getAnimations().filter(
+              a => a.effect && String(a.effect.pseudoElement || '').includes('view-transition')
+            );
+            dbg('ready: OK');
+            dbg(`anims: ${anims.length || 'ไม่มี'} ${anims.map(a => `${a.animationName || '?'}/${Math.round(a.effect.getComputedTiming().duration)}ms/${a.playState}`).join(', ')}`);
+          }
+        },
+        (err) => {
+          // ถูกข้าม — ปล่อยเส้นทางสำรองที่เตรียมไว้ทำงานแทน
+          dbg(`ready: ถูกข้าม (${err?.name || err})`);
+        }
+      );
+
       // finished จะ reject เมื่อทรานซิชันถูกยกเลิก (กดสลับรัวจนอันเก่าถูกตัด หรือแท็บถูกซ่อน)
       // ต้องรับไว้เอง ไม่งั้นกลายเป็น unhandled rejection โผล่ใน console ทุกครั้ง
       transition.finished
-        .catch(() => {})
+        .catch((err) => dbg(`finished: reject (${err?.name || err})`))
         .finally(() => root.classList.remove('vt-active'));
       return;
     }
 
-    // ค้างสีธีมเดิมไว้ที่เลเยอร์ ::after เพื่อเฟดออก — จำเป็นเพราะ background-blend-mode
-    // กับ background-image เป็น property ที่ transition ไม่ได้
-    root.style.setProperty('--hero-tint-prev', getComputedStyle(root).getPropertyValue('--hero-tint').trim());
-    root.classList.add('theme-switching', 'theme-hold');
+    dbg('startViewTransition: ไม่มี → ใช้เส้นทางสำรอง');
+    armFallback();
     applySystem();
-    // ถอด theme-hold เฟรมถัดไปเพื่อให้ ::after เริ่มเฟดออก
-    // ส่วน theme-switching ต้องค้างจนสีไล่เสร็จ ไม่งั้นสีจะกระโดดกลางทาง
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => root.classList.remove('theme-hold'));
-    });
-    window.setTimeout(() => root.classList.remove('theme-switching'), 500);
   };
 
   const handleVerifyAdminPassword = async () => {
@@ -646,6 +688,17 @@ export default function Home() {
 
   return (
     <div className="container">
+      {/* กล่องไล่ปัญหา View Transitions — โผล่เฉพาะเมื่อเปิดหน้าด้วย ?vtdebug */}
+      {vtDebug && (
+        <pre style={{
+          position: 'fixed', left: '10px', bottom: '10px', zIndex: 2000,
+          margin: 0, padding: '10px 12px', borderRadius: '10px',
+          background: 'rgba(0, 0, 0, 0.82)', color: '#7CFFB2',
+          font: '12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace',
+          whiteSpace: 'pre-wrap', maxWidth: '92vw'
+        }}>{vtDebug}</pre>
+      )}
+
       {/* Toast Notification */}
       {toast.show && (
         <div className="toast">
