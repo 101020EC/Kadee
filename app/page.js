@@ -9,6 +9,9 @@ const DEFAULT_URL_VIOLATION = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/
 const DEFAULT_URL_VIS = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/VIS.docx';
 const DEFAULT_URL_THAI_VEHICLE = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/PTK.docx';
 
+// เลขที่ใบเสร็จรับเงิน (MY VIS) ขึ้นต้นด้วยเลขชุดนี้เสมอ เช่น 5901-750001
+const RECEIPT_PREFIX = '5901';
+
 const INITIAL_FORM = {
   case_number: '',
   customs_office: '',
@@ -531,6 +534,25 @@ export default function Home() {
       return;
     }
 
+    // จำนวนวันที่ล่าช้า: ใส่ , คั่นหลักพัน เช่น 1000 -> 1,000
+    if (name === 'fine_days') {
+      const digits = value.replace(/\D/g, '');
+      const formatted = digits ? Number(digits).toLocaleString('en-US') : '';
+      setFormData(prev => ({ ...prev, fine_days: formatted }));
+      return;
+    }
+
+    // เลขที่ใบเสร็จรับเงินขึ้นต้นด้วย 5901 เสมอ เช่น 5901-750001
+    if (name === 'receipt_number') {
+      let digits = value.replace(/\D/g, '');
+      if (digits.startsWith(RECEIPT_PREFIX)) digits = digits.slice(RECEIPT_PREFIX.length);
+      setFormData(prev => ({
+        ...prev,
+        receipt_number: digits ? `${RECEIPT_PREFIX}-${digits}` : ''
+      }));
+      return;
+    }
+
     // Automatically change department abbreviation if approver position changes
     if (name === 'approver_position') {
       let deptAbbr = 'ฝคต';
@@ -633,7 +655,7 @@ export default function Home() {
       // Calculate fine_days_p2 dynamically based on final fine_days value (for VIS)
       // ตัวเลขปกติเติมช่องว่างนำหน้า เพราะ template เขียน "จำนวน{{fine_days_p2}}" ติดกัน
       // เพื่อให้กรณี "เกินกว่า 10" ออกมาเป็น "จำนวนเกินกว่า 10 วัน"
-      const parsedDays = parseInt(data.fine_days, 10);
+      const parsedDays = parseInt(String(data.fine_days).replace(/,/g, ''), 10);
       const fineDaysP2 = (!isNaN(parsedDays) && parsedDays > 10) ? "เกินกว่า 10"
         : data.fine_days ? ` ${data.fine_days}` : '';
 
@@ -1381,6 +1403,7 @@ export default function Home() {
                         name="receipt_number" 
                         value={formData.receipt_number} 
                         onChange={handleInputChange} 
+                        placeholder="เช่น 5901-750001"
                         required 
                       />
                     </div>

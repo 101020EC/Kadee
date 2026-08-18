@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/app/lib/logger';
 
+// เลขที่ใบเสร็จรับเงิน (MY VIS) ขึ้นต้นด้วยเลขชุดนี้เสมอ เช่น 5901-750001
+const RECEIPT_PREFIX = '5901';
+
 function convertToThaiDate(dateStr) {
   if (!dateStr) return "";
   const parts = dateStr.split('/');
@@ -223,7 +226,8 @@ export async function POST(request) {
     const receiptMatch = text.match(/1\s+ด่านศุลกากร\S+\s+(?:\(ศภ\.\d\)\s+)?(\d+)\s+([\d,.]+)\s+(\d{2}\/\d{2}\/\d{4})/);
     if (receiptMatch) {
       const receiptNo = receiptMatch[1];
-      data.receipt_number = `${prefix}-${receiptNo}`;
+      // เลขที่ใบเสร็จรับเงินขึ้นต้นด้วย 5901 เสมอ (ไม่ใช้ prefix จากใบขนฯ)
+      data.receipt_number = `${RECEIPT_PREFIX}-${receiptNo}`;
       data.fine_amount = receiptMatch[2].split('.')[0]; // remove decimals
       data.return_date = receiptMatch[3];
     } else {
@@ -254,7 +258,7 @@ export async function POST(request) {
       if (d1 && d2) {
         const diffTime = d2.getTime() - d1.getTime();
         const days = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-        data.fine_days = days > 0 ? days.toString() : "";
+        data.fine_days = days > 0 ? days.toLocaleString("en-US") : "";
         if (days > 0) {
           const calculatedFine = Math.min(10000, days * 1000);
           data.fine_amount = data.fine_amount || calculatedFine.toLocaleString('en-US');
