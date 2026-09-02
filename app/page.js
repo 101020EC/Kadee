@@ -122,6 +122,8 @@ export default function Home() {
   const [generating, setGenerating] = useState(false);
   // Popup ยืนยันวันที่นำยานพาหนะออกไปจริง (เฉพาะ MY ผิดพิธีการ)
   const [confirmDialog, setConfirmDialog] = useState({ show: false, date: '' });
+  // Popup แก้ไขเลขแฟ้มคดี เมื่อผู้ใช้พิมพ์ตัวอักษรปนมากับตัวเลข
+  const [caseDialog, setCaseDialog] = useState({ show: false, value: '' });
 
   // Load saved settings from localStorage on mount
   useEffect(() => {
@@ -584,6 +586,18 @@ export default function Home() {
     setAppState('upload');
   };
 
+  // เลขแฟ้มคดีต้องมีแต่ตัวเลขกับตัวคั่น (เช่น 1000/1.01.2569) — ใช้ตรวจว่ามีตัวอักษรปนมาไหม
+  const hasLetters = (value) => /\p{L}/u.test(String(value ?? ''));
+
+  // ขั้นถัดจากตรวจเลขแฟ้มคดี: MY ผิดพิธีการต้องยืนยันวันที่ก่อน ระบบอื่นสร้างไฟล์ได้เลย
+  const proceedToGenerate = async (data) => {
+    if (activeSystem === 'violation') {
+      setConfirmDialog({ show: true, date: data.return_date_th });
+      return;
+    }
+    await generateDocument(data);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -623,13 +637,30 @@ export default function Home() {
       return;
     }
 
-    // MY ผิดพิธีการ: ยืนยันวันที่นำยานพาหนะออกไปจริงก่อนสร้างไฟล์
-    if (activeSystem === 'violation') {
-      setConfirmDialog({ show: true, date: formData.return_date_th });
+    // เลขแฟ้มคดีมีตัวอักษรปนมา: เด้ง popup ให้แก้เป็นตัวเลขก่อนสร้างไฟล์
+    if ((activeSystem === 'violation' || activeSystem === 'thai_vehicle') && hasLetters(formData.case_number)) {
+      setCaseDialog({ show: true, value: formData.case_number });
       return;
     }
 
-    await generateDocument(formData);
+    await proceedToGenerate(formData);
+  };
+
+  // ผู้ใช้กดตกลงใน popup แก้เลขแฟ้มคดี
+  const handleConfirmCaseNumber = async () => {
+    const value = caseDialog.value.trim();
+    if (!value) {
+      showToast('กรุณากรอกเลขแฟ้มคดี');
+      return;
+    }
+    if (hasLetters(value)) {
+      showToast('เลขแฟ้มคดีต้องเป็นตัวเลข ห้ามมีตัวอักษรปน');
+      return;
+    }
+    const updated = { ...formData, case_number: value };
+    setFormData(updated);
+    setCaseDialog({ show: false, value: '' });
+    await proceedToGenerate(updated);
   };
 
   // ผู้ใช้กดตกลงใน popup ยืนยันวันที่ (อาจแก้ไขวันที่ใน popup แล้ว)
@@ -717,6 +748,55 @@ export default function Home() {
         <div className="toast">
           <i className="fa-solid fa-circle-exclamation"></i>
           <span>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Popup แก้เลขแฟ้มคดี เมื่อพิมพ์ตัวอักษรปนมากับตัวเลข */}
+      {caseDialog.show && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-color)', borderRadius: '16px', padding: '1.8rem 2rem',
+            maxWidth: '420px', width: '90%', boxShadow: '0 20px 45px rgba(0, 0, 0, 0.25)'
+          }}>
+            <h3 style={{ marginBottom: '0.8rem', color: 'var(--text-main)' }}>
+              <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px', color: 'var(--accent-primary)' }}></i>
+              ตรวจสอบเลขแฟ้มคดี
+            </h3>
+            <p style={{ color: 'var(--text-main)', marginBottom: '1rem' }}>
+              เลขแฟ้มคดี <strong>{formData.case_number}</strong> มีตัวอักษรปนอยู่
+              กรุณาแก้ไขให้เหลือเฉพาะตัวเลข (เช่น 1000/1.01.2569) ก่อนสร้างบันทึกข้อความ
+            </p>
+            <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+              <input
+                type="text"
+                value={caseDialog.value}
+                onChange={(e) => setCaseDialog(prev => ({ ...prev, value: e.target.value }))}
+                placeholder="เช่น 1000/1.01.2569"
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem' }}>
+              <button
+                type="button"
+                className="btn-back"
+                onClick={() => setCaseDialog({ show: false, value: '' })}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="btn-generate"
+                disabled={generating}
+                onClick={handleConfirmCaseNumber}
+                style={{ padding: '0.6rem 1.8rem' }}
+              >
+                ตกลง
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

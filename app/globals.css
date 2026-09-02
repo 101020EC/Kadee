@@ -449,7 +449,25 @@ header p {
     font-size: 0.95rem;
     font-family: inherit;
     font-weight: 500;
+    /* line-height + box-sizing บังคับให้ select สูงเท่า input เป๊ะ
+       (ไม่งั้นเบราว์เซอร์คิดความสูงในของ select เอง แล้วเตี้ยกว่าช่องอื่น) */
+    line-height: 1.5;
+    box-sizing: border-box;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* select ในฟอร์มหลัก: ปิดหน้าตา native แล้ววาดลูกศรเอง จะได้คุมความสูง/ระยะขอบได้เหมือน input
+   (ไม่แตะ select ในกล่องตั้งค่า ที่กว้างแค่ 200px และตั้ง padding เองผ่าน inline style) */
+.details-form .form-group select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 2.6rem;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236b7280' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1.1rem center;
+    background-size: 12px 8px;
+    cursor: pointer;
 }
 
 .form-group select:focus,
