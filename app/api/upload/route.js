@@ -215,12 +215,20 @@ export async function POST(request) {
     }
     
     // 6. Suffix and Declaration Number
-    const suffixMatch = text.match(/\b(\d{10})-?\b/);
-    if (prefix && suffixMatch) {
-      data.declaration_number = `${prefix}-${suffixMatch[1]}`;
-    } else {
-      data.declaration_number = "";
-    }
+    // เลข 10 หลักของใบขนฯ = [ประเภท][ปี พ.ศ. 2 หลัก][เดือน][ลำดับ 5 หลัก]
+    // ประเภท 6 = รถไทย, 7 = รถต่างประเทศ; ปี/เดือน = วันที่บันทึกใบขนสินค้าพิเศษ (import_date)
+    // ห้ามหยิบเลข 10 หลักชุดแรกที่เจอ เพราะเลขตัวถังอาจมาก่อน (เช่น 2332057884)
+    // ไม่มีชุดไหนผ่าน → ปล่อยว่าง ให้ผู้ใช้กรอกเอง (ช่องนี้บังคับกรอกในฟอร์ม)
+    const typeDigits = system === 'thai_vehicle' ? ['6']
+      : (system === 'violation' || system === 'vis') ? ['7'] : ['6', '7'];
+    const importParts = (data.import_date || "").split('/');
+    const yearMonth = importParts.length === 3
+      ? String(parseInt(importParts[2], 10) + 543).slice(-2) + importParts[1].padStart(2, '0')
+      : null;
+    const suffix = yearMonth && [...text.matchAll(/\b(\d{10})-?\b/g)]
+      .map(m => m[1])
+      .find(n => typeDigits.includes(n[0]) && n.slice(1, 5) === yearMonth);
+    data.declaration_number = prefix && suffix ? `${prefix}-${suffix}` : "";
     
     // 7. Receipt Row parsing (fine payments)
     const receiptMatch = text.match(/1\s+ด่านศุลกากร\S+\s+(?:\(ศภ\.\d\)\s+)?(\d+)\s+([\d,.]+)\s+(\d{2}\/\d{2}\/\d{4})/);
