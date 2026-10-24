@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/app/lib/logger';
+import { thaiBahtText } from '@/app/lib/thaiBahtText';
 
 // เลขที่ใบเสร็จรับเงิน (MY VIS) ขึ้นต้นด้วยเลขชุดนี้เสมอ เช่น 5901-750001
 const RECEIPT_PREFIX = '5901';
@@ -20,32 +21,6 @@ function convertToThaiDate(dateStr) {
   
   const thaiYear = year + 543;
   return `${day} ${thaiMonths[month]} ${thaiYear}`;
-}
-
-function thaiBahtText(number) {
-  if (number === 0) return "ศูนย์บาทถ้วน";
-  const THAI_NUMBERS = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"];
-  const THAI_UNITS = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"];
-  
-  let str = "";
-  const numStr = number.toString();
-  const len = numStr.length;
-  for (let i = 0; i < len; i++) {
-    const digit = parseInt(numStr[i]);
-    if (digit !== 0) {
-      const pos = len - 1 - i;
-      if (pos === 1 && digit === 1) {
-        str += "สิบ";
-      } else if (pos === 1 && digit === 2) {
-        str += "ยี่สิบ";
-      } else if (pos === 0 && digit === 1 && len > 1 && numStr[i-1] !== '0') {
-        str += "เอ็ด";
-      } else {
-        str += THAI_NUMBERS[digit] + THAI_UNITS[pos];
-      }
-    }
-  }
-  return str + "บาทถ้วน";
 }
 
 function cleanOffice(officeStr) {
@@ -156,11 +131,11 @@ export async function POST(request) {
     const headerIdx = lines.findIndex(l => l.startsWith("เลขที่ใบขนสินค้าพิเศษ"));
     let prefix = "";
     if (headerIdx !== -1) {
-      prefix = lines[headerIdx + 11];
+      prefix = lines[headerIdx + 11] || "";
       data.import_office = cleanOffice(lines[headerIdx + 12]);
-      data.due_date = lines[headerIdx + 18];
-      data.import_date = lines[headerIdx + 19];
-      data.doc_date = lines[headerIdx + 20];
+      data.due_date = lines[headerIdx + 18] || "";
+      data.import_date = lines[headerIdx + 19] || "";
+      data.doc_date = lines[headerIdx + 20] || "";
     } else {
       data.import_office = "";
       data.due_date = "";
@@ -171,7 +146,8 @@ export async function POST(request) {
     // 4. Vehicle Details relative to "ยานพาหนะทางบก"
     const vehicleIdx = lines.findIndex(l => l === "ยานพาหนะทางบก");
     if (vehicleIdx !== -1) {
-      const rawPlate = lines[vehicleIdx + 12];
+      // อ่านตามตำแหน่งบรรทัด — ถ้าหน้าตา PDF เลื่อนไป ให้ได้ช่องว่าง ไม่ใช่ error ทั้งไฟล์
+      const rawPlate = lines[vehicleIdx + 12] || "";
       let cleanedPlate = rawPlate.replace(/^([A-Za-zก-๙]+)(\d+)$/, '$1 $2');
       
       // Look for Thai vehicle registration province (e.g. "สงขลา /")
@@ -184,10 +160,10 @@ export async function POST(request) {
       }
       
       data.vehicle_plate = cleanedPlate;
-      data.vehicle_brand = lines[vehicleIdx + 13];
+      data.vehicle_brand = lines[vehicleIdx + 13] || "";
       
       // Clean type — จำกัดเหลือ 2 ประเภทตามตัวเลือกในฟอร์ม
-      const rawType = lines[vehicleIdx + 18];
+      const rawType = lines[vehicleIdx + 18] || "";
       data.vehicle_type = rawType.includes("จักรยานยนต์") ? "รถจักรยานยนต์"
         : rawType.includes("รถยนต์") ? "รถยนต์" : "";
     } else {
@@ -199,15 +175,15 @@ export async function POST(request) {
     // 5. Applicant Details relative to "ผู้ขออนุญาต"
     const applicantIdx = lines.findIndex(l => l === "ผู้ขออนุญาต");
     if (applicantIdx !== -1) {
-      let cleanName = lines[applicantIdx + 6].replace(/\s+/g, ' ');
+      let cleanName = (lines[applicantIdx + 6] || "").replace(/\s+/g, ' ');
       if (cleanName.includes("MR. ") && cleanName.includes("BINTI")) {
         cleanName = cleanName.replace("MR. ", "MRS. ");
       }
       // Remove space between Thai prefix and name (e.g. "นาย ฮัมดัม" -> "นายฮัมดัม")
       cleanName = cleanName.replace(/^(นาย|นาง|นางสาว|เด็กชาย|เด็กหญิง)\s+/, '$1');
       data.person_name = cleanName;
-      data.nationality = lines[applicantIdx + 8];
-      data.passport_number = lines[applicantIdx + 9];
+      data.nationality = lines[applicantIdx + 8] || "";
+      data.passport_number = lines[applicantIdx + 9] || "";
     } else {
       data.person_name = "";
       data.nationality = "";
@@ -270,8 +246,7 @@ export async function POST(request) {
         if (days > 0) {
           const calculatedFine = Math.min(10000, days * 1000);
           data.fine_amount = data.fine_amount || calculatedFine.toLocaleString('en-US');
-          const numAmount = parseInt(data.fine_amount.replace(/,/g, ''));
-          data.fine_amount_th = thaiBahtText(numAmount);
+          data.fine_amount_th = thaiBahtText(data.fine_amount);
         } else {
           data.fine_amount = "";
           data.fine_amount_th = "";

@@ -7,13 +7,16 @@ import { db } from '@/app/lib/firebaseAdmin';
 // Value: { buffer: Buffer, source: string, timestamp: number }
 const templateMemoryCache = new Map();
 
+// Vercel มีหลาย instance — อัปโหลดแม่แบบใหม่แล้ว instance อื่นต้องเห็นภายในเวลานี้
+const CACHE_TTL_MS = 60 * 1000;
+
 /**
- * Get template buffer from In-Memory Cache, Firestore, Local file, or Remote URL
+ * Get template buffer from In-Memory Cache, Firestore, or Local file
  */
-export async function getTemplateBuffer(templateType, filename, templateUrl) {
+export async function getTemplateBuffer(templateType, filename) {
   // 1. Check In-Memory Cache
-  if (templateMemoryCache.has(templateType)) {
-    const cached = templateMemoryCache.get(templateType);
+  const cached = templateMemoryCache.get(templateType);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     console.log(`[Template Cache HIT] '${templateType}' loaded from RAM cache (Source: ${cached.source})`);
     return cached.buffer;
   }
@@ -47,19 +50,8 @@ export async function getTemplateBuffer(templateType, filename, templateUrl) {
     }
   }
 
-  // 4. Fallback to external URL
-  if (!templateBuffer && templateUrl && (templateUrl.startsWith('http://') || templateUrl.startsWith('https://'))) {
-    console.log(`[Template Cache] Fetching template from URL: ${templateUrl}`);
-    const response = await fetch(templateUrl, { cache: 'no-store' });
-    if (response.ok) {
-      const arrayBuffer = await response.arrayBuffer();
-      templateBuffer = Buffer.from(arrayBuffer);
-      source = `URL (${templateUrl})`;
-    }
-  }
-
   if (!templateBuffer) {
-    throw new Error(`Template file for '${templateType}' (${filename || templateUrl}) not found.`);
+    throw new Error(`Template file for '${templateType}' (${filename}) not found.`);
   }
 
   // Save to In-Memory Cache

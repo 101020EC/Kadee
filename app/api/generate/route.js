@@ -4,6 +4,12 @@ import { getTemplateBuffer } from '@/app/lib/templateCache';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 
+const TEMPLATES = {
+  thai_vehicle: { filename: 'PTK.docx', name: 'รถไทย' },
+  violation: { filename: 'MY.docx', name: 'MY ผิดพิธีการ' },
+  vis: { filename: 'VIS.docx', name: 'MY VIS' }
+};
+
 export async function POST(request) {
   let data;
   try {
@@ -13,26 +19,12 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No data provided' }, { status: 400 });
     }
     
-    // Determine template type and filename
-    const templateUrl = data.template_url || 'MY.docx';
-    const lowerUrl = templateUrl.toLowerCase();
-    
-    let templateType = 'violation';
-    let filename = 'MY.docx';
-    let templateName = 'MY ผิดพิธีการ';
-
-    if (lowerUrl.includes('ptk')) {
-      templateType = 'thai_vehicle';
-      filename = 'PTK.docx';
-      templateName = 'รถไทย';
-    } else if (lowerUrl.includes('vis')) {
-      templateType = 'vis';
-      filename = 'VIS.docx';
-      templateName = 'MY VIS';
-    }
+    // ฝั่งเว็บส่งมาแค่ชื่อระบบ เซิร์ฟเวอร์เลือกไฟล์เอง ไม่ดึง URL ที่ผู้ใช้ส่งมา
+    const templateType = TEMPLATES[data.system] ? data.system : 'violation';
+    const { filename, name: templateName } = TEMPLATES[templateType];
 
     // Load template using In-Memory Cache (RAM cache) or fallback to Firestore/Local
-    const templateBuffer = await getTemplateBuffer(templateType, filename, templateUrl);
+    const templateBuffer = await getTemplateBuffer(templateType, filename);
     
     // Load the document using PizZip and Docxtemplater
     const zip = new PizZip(templateBuffer);
@@ -76,17 +68,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Failed to generate document:', error);
 
-    let templateName = 'ไม่ทราบแน่ชัด';
-    if (data && data.template_url) {
-      const lowerUrl = data.template_url.toLowerCase();
-      if (lowerUrl.includes('ptk')) {
-        templateName = 'รถไทย';
-      } else if (lowerUrl.includes('my')) {
-        templateName = 'MY ผิดพิธีการ';
-      } else if (lowerUrl.includes('vis')) {
-        templateName = 'MY VIS';
-      }
-    }
+    const templateName = TEMPLATES[data?.system]?.name || 'ไม่ทราบแน่ชัด';
 
     await logEvent('generate', 'error', {
       template: templateName,

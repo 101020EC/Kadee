@@ -4,6 +4,9 @@ import path from 'path';
 import { db } from '@/app/lib/firebaseAdmin';
 import { setTemplateCache } from '@/app/lib/templateCache';
 
+// เอกสาร Firestore จำกัด 1 MiB และ base64 ทำให้ไฟล์ใหญ่ขึ้น ~4/3 เท่า
+const MAX_TEMPLATE_BYTES = 700 * 1024;
+
 const TEMPLATES = {
   thai_vehicle: 'PTK.docx',
   violation: 'MY.docx',
@@ -37,6 +40,12 @@ export async function POST(request) {
     const filename = TEMPLATES[type];
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    if (buffer.length > MAX_TEMPLATE_BYTES) {
+      return NextResponse.json({
+        error: `ไฟล์แม่แบบใหญ่เกินไป (${Math.round(buffer.length / 1024)} KB) — ต้องไม่เกิน 700 KB ลองลบรูปหรือบีบอัดรูปในไฟล์ Word`
+      }, { status: 413 });
+    }
 
     let savedToCloud = false;
     let cloudError = null;

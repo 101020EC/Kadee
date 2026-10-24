@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { FieldValue } from 'firebase-admin/firestore';
 import { db, firebaseStatus } from '@/app/lib/firebaseAdmin';
+import { escapeHtml, sendTelegramMessage } from '@/app/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,12 +12,11 @@ const SETTINGS_FILE_NAME = 'vis_settings.json';
 // ระบบไฟล์บน Vercel เป็น read-only — เขียนไฟล์ได้เฉพาะตอนรัน dev ในเครื่องเท่านั้น
 const CAN_WRITE_LOCAL_FILE = process.env.NODE_ENV !== 'production' && !process.env.VERCEL;
 
+// ค่าที่ใช้ร่วมกันทุกเครื่อง — ผู้เสนอรายงานกับการเลือก ฝคต./ฝปป. เป็นค่าส่วนตัว
+// เก็บใน localStorage ของแต่ละเครื่อง ไม่อยู่ในนี้ (หลายคนใช้แอปร่วมกัน)
 const DEFAULT_VIS_SETTINGS = {
-  approver_selection: 'approver_1',
   approver_1_name: 'นายวรวุฒิ สุภชัยพานิชพงศ์',
   approver_2_name: 'นางสาวปิลันธนา ไตรทิพพิสมัย',
-  proposer_name: '',
-  proposer_position: 'นักวิชาการศุลกากรชำนาญการ',
   vis_chief_name: 'นายหะริน หอวัง',
   vis_chief_position: 'นายด่านศุลกากรปาดังเบซาร์',
   vis_director_name: 'นายพิภพ พุทธสุข',
@@ -25,6 +26,38 @@ const DEFAULT_VIS_SETTINGS = {
   vis_legal_name: 'นายสุทิน ภูเดช',
   vis_legal_position: 'นิติกรชำนาญการ'
 };
+
+// ฟิลด์ส่วนตัวที่เวอร์ชันก่อนเคยเขียนลง settings/vis — ลบทิ้งตอนบันทึกครั้งถัดไป
+const LEGACY_PERSONAL_FIELDS = ['approver_selection', 'proposer_name', 'proposer_position'];
+
+const FIELD_LABELS = {
+  approver_1_name: 'หัวหน้า ฝคต.',
+  approver_2_name: 'หัวหน้า ฝปป.',
+  vis_chief_name: 'ชื่อนายด่าน',
+  vis_chief_position: 'ตำแหน่งนายด่าน',
+  vis_director_name: 'ชื่อ ผอ.ส่วนบริการ',
+  vis_director_position: 'ตำแหน่ง ผอ.ส่วนบริการ',
+  vis_head_service_name: 'ชื่อหัวหน้าฝ่ายบริการฯ 2',
+  vis_head_service_position: 'ตำแหน่งหัวหน้าฝ่ายบริการฯ 2',
+  vis_legal_name: 'ชื่อนิติกร',
+  vis_legal_position: 'ตำแหน่งนิติกร'
+};
+
+// ใครก็แก้ค่าที่แชร์ได้ จึงแจ้ง Telegram ทุกครั้งที่ชื่อเปลี่ยน เฉพาะช่องที่เปลี่ยน แบบ เดิม → ใหม่
+async function notifySettingsChanged(before, after, changedBy) {
+  const lines = Object.keys(FIELD_LABELS)
+    .filter(key => (before[key] ?? '') !== (after[key] ?? ''))
+    .map(key => `• <b>${FIELD_LABELS[key]}:</b> ${escapeHtml(before[key] || '(ว่าง)')} → ${escapeHtml(after[key] || '(ว่าง)')}`);
+  if (lines.length === 0) return;
+
+  const timeStr = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+  await sendTelegramMessage(
+    `✏️ <b>มีการเปลี่ยนชื่อในตั้งค่า (ใช้ร่วมกันทุกเครื่อง)</b>\n` +
+    lines.join('\n') + '\n' +
+    `• <b>บันทึกโดย:</b> ${escapeHtml(changedBy || 'ไม่ระบุ')}\n` +
+    `• <b>เวลา:</b> ${timeStr}`
+  );
+}
 
 export async function GET() {
   try {
@@ -86,11 +119,8 @@ export async function POST(request) {
     }
 
     const payload = {
-      approver_selection: data.approver_selection || DEFAULT_VIS_SETTINGS.approver_selection,
       approver_1_name: data.approver_1_name !== undefined ? data.approver_1_name : DEFAULT_VIS_SETTINGS.approver_1_name,
       approver_2_name: data.approver_2_name !== undefined ? data.approver_2_name : DEFAULT_VIS_SETTINGS.approver_2_name,
-      proposer_name: data.proposer_name !== undefined ? data.proposer_name : DEFAULT_VIS_SETTINGS.proposer_name,
-      proposer_position: data.proposer_position || DEFAULT_VIS_SETTINGS.proposer_position,
       vis_chief_name: data.vis_chief_name || DEFAULT_VIS_SETTINGS.vis_chief_name,
       vis_chief_position: data.vis_chief_position || DEFAULT_VIS_SETTINGS.vis_chief_position,
       vis_director_name: data.vis_director_name || DEFAULT_VIS_SETTINGS.vis_director_name,
@@ -108,9 +138,18 @@ export async function POST(request) {
     // 1. Save to Firestore if initialized
     if (db) {
       try {
-        await db.collection('settings').doc('vis').set(payload, { merge: true });
+        const docRef = db.collection('settings').doc('vis');
+        const beforeSnap = await docRef.get();
+        const before = { ...DEFAULT_VIS_SETTINGS, ...(beforeSnap.exists ? beforeSnap.data() : {}) };
+
+        const legacyDeletes = Object.fromEntries(
+          LEGACY_PERSONAL_FIELDS.filter(key => key in before).map(key => [key, FieldValue.delete()])
+        );
+        await docRef.set({ ...payload, ...legacyDeletes }, { merge: true });
         uploadedToCloud = true;
         console.log('Successfully saved vis settings to Firestore.');
+
+        await notifySettingsChanged(before, payload, data.changed_by);
       } catch (err) {
         console.error('Firestore upload for settings failed:', err.message);
         cloudError = err.message;

@@ -4,10 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
-
-const DEFAULT_URL_VIOLATION = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/MY.docx';
-const DEFAULT_URL_VIS = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/VIS.docx';
-const DEFAULT_URL_THAI_VEHICLE = 'https://rmonhufcsumwdnrzhqmo.supabase.co/storage/v1/object/public/Template/PTK.docx';
+import { thaiBahtText } from '@/app/lib/thaiBahtText';
 
 // เลขที่ใบเสร็จรับเงิน (MY VIS) ขึ้นต้นด้วยเลขชุดนี้เสมอ เช่น 5901-750001
 const RECEIPT_PREFIX = '5901';
@@ -174,11 +171,9 @@ export default function Home() {
       .then(resData => {
         setCloudSyncOk(resData.cloudAvailable === true);
         if (resData.success && resData.data) {
+          // ชื่อ/ตำแหน่งผู้เสนอ และการเลือก ฝคต./ฝปป. เป็นค่าส่วนตัวของแต่ละเครื่อง
+          // เก็บใน localStorage อย่างเดียว ไม่รับค่าจาก Cloud มาทับ (หลายคนใช้ร่วมกัน)
           const d = resData.data;
-          if (d.approver_selection) {
-            setApproverSelection(d.approver_selection);
-            localStorage.setItem('approver_selection', d.approver_selection);
-          }
           if (d.approver_1_name) {
             setApprover1Name(d.approver_1_name);
             localStorage.setItem('approver_1_name', d.approver_1_name);
@@ -186,14 +181,6 @@ export default function Home() {
           if (d.approver_2_name) {
             setApprover2Name(d.approver_2_name);
             localStorage.setItem('approver_2_name', d.approver_2_name);
-          }
-          if (d.proposer_name !== undefined) {
-            setProposerName(d.proposer_name);
-            localStorage.setItem('proposer_name', d.proposer_name);
-          }
-          if (d.proposer_position) {
-            setProposerPosition(d.proposer_position);
-            localStorage.setItem('proposer_position', d.proposer_position);
           }
           if (d.vis_chief_name) {
             setVisChiefName(d.vis_chief_name);
@@ -529,10 +516,11 @@ export default function Home() {
     const { name, value } = e.target;
 
     // Format fine amount with thousands separator, e.g. 1000 -> 1,000
+    // ตัวอักษรไทยคำนวณใหม่ทุกครั้งที่แก้ตัวเลข (ยังพิมพ์แก้ทับในช่องตัวอักษรเองได้)
     if (name === 'fine_amount') {
       const digits = value.replace(/\D/g, '');
       const formatted = digits ? Number(digits).toLocaleString('en-US') : '';
-      setFormData(prev => ({ ...prev, fine_amount: formatted }));
+      setFormData(prev => ({ ...prev, fine_amount: formatted, fine_amount_th: thaiBahtText(digits) }));
       return;
     }
 
@@ -678,10 +666,6 @@ export default function Home() {
   const generateDocument = async (data) => {
     setGenerating(true);
 
-    let activeTemplateUrl = DEFAULT_URL_VIOLATION;
-    if (activeSystem === 'vis') activeTemplateUrl = DEFAULT_URL_VIS;
-    else if (activeSystem === 'thai_vehicle') activeTemplateUrl = DEFAULT_URL_THAI_VEHICLE;
-
     try {
       // Calculate fine_days_p2 dynamically based on final fine_days value (for VIS)
       // ตัวเลขปกติเติมช่องว่างนำหน้า เพราะ template เขียน "จำนวน{{fine_days_p2}}" ติดกัน
@@ -701,7 +685,7 @@ export default function Home() {
         vis_director_name: visDirectorName,
         vis_director_position: visDirectorPosition,
         fine_days_p2: fineDaysP2,
-        template_url: activeTemplateUrl
+        system: activeSystem
       };
 
       const response = await fetch('/api/generate', {
@@ -1189,18 +1173,16 @@ export default function Home() {
                           localStorage.setItem('vis_director_name', visDirectorName);
                           localStorage.setItem('vis_director_position', visDirectorPosition);
 
-                          // Save settings to Cloud — ทั้งผู้เสนอรายงาน ผู้อนุมัติ และเจ้าหน้าที่ MY VIS
-                          // ไปเป็นก้อนเดียวกันที่ Firestore settings/vis
+                          // Save settings to Cloud — เฉพาะชื่อผู้อนุมัติและเจ้าหน้าที่ MY VIS ที่ใช้ร่วมกัน
+                          // ผู้เสนอรายงานกับการเลือก ฝคต./ฝปป. อยู่ในเครื่องนี้เท่านั้น
+                          // changed_by ใช้บอกในแจ้งเตือน Telegram ว่าใครเปลี่ยน ไม่ถูกเก็บ
                           try {
                             const cloudRes = await fetch('/api/vis-settings', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
-                                approver_selection: approverSelection,
                                 approver_1_name: approver1Name,
                                 approver_2_name: approver2Name,
-                                proposer_name: proposerName,
-                                proposer_position: proposerPosition,
                                 vis_chief_name: visChiefName,
                                 vis_chief_position: visChiefPosition,
                                 vis_director_name: visDirectorName,
@@ -1209,6 +1191,7 @@ export default function Home() {
                                 vis_head_service_position: visHeadServicePosition,
                                 vis_legal_name: visLegalName,
                                 vis_legal_position: visLegalPosition,
+                                changed_by: proposerName,
                               })
                             });
                             const cloudData = await cloudRes.json().catch(() => null);
@@ -1216,7 +1199,7 @@ export default function Home() {
                             setCloudSyncOk(savedToCloud);
 
                             if (savedToCloud) {
-                              showToast('บันทึกการตั้งค่าลงระบบ Cloud เรียบร้อยแล้ว! (ใช้ร่วมกันทุกเครื่อง)');
+                              showToast('บันทึกแล้ว! ชื่อผู้อนุมัติและเจ้าหน้าที่ใช้ร่วมกันทุกเครื่อง ส่วนผู้เสนอรายงานอยู่เฉพาะเครื่องนี้');
                             } else {
                               console.warn('Cloud save failed:', cloudData?.cloudError || cloudRes.status);
                               showToast('⚠️ บันทึกเฉพาะเครื่องนี้ ยังไม่ขึ้น Cloud — เครื่องอื่นจะยังเห็นค่าเดิม');
