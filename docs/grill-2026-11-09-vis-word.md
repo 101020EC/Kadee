@@ -53,3 +53,9 @@ Status: built 2026-11-09 — D1–D4 done (see Result)
   `/api/generate` on kadee-offline returns all 3 systems. NOT verified visually: centre tabs —
   Word's AppleScript can no longer export PDF or report positions, and QuickLook/docx-preview
   ignore centre tabs. Check one real VIS file in Word.
+
+## Follow-up (2026-11-09): page-2 title off-centre
+
+Removing the white duplicate (D1) exposed 18 leading 29pt spaces in the page-2 header paragraph
+(`jc=center`), which had been balanced by the white text — the title drifted ~2.1 cm right.
+Removed the leading spaces; title is now truly centred (page 1 uses indent 3119, ~2 mm left of centre).
