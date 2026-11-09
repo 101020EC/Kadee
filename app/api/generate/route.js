@@ -3,6 +3,7 @@ import { logEvent } from '@/app/lib/logger';
 import { getTemplateBuffer } from '@/app/lib/templateCache';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
+import { postProcessDocx, keepPlateTogether } from '@/app/lib/keepTogether';
 
 const TEMPLATES = {
   thai_vehicle: { filename: 'PTK.docx', name: 'รถไทย' },
@@ -38,7 +39,10 @@ export async function POST(request) {
     });
     
     // Render the document (replace all {{variable}} placeholders)
-    doc.render(data);
+    doc.render({ ...data, vehicle_plate: keepPlateTogether(data.vehicle_plate) });
+
+    // วันที่ / มาตรา / พ.ศ. / จำนวนเงิน ฯลฯ ไม่ให้ Word ตัดข้ามบรรทัด
+    postProcessDocx(doc.getZip());
     
     // Generate the output buffer
     const outBuffer = doc.getZip().generate({
