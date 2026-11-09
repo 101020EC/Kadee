@@ -515,6 +515,13 @@ export default function Home() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
+    // ผู้เสนอรายงานแก้ในฟอร์มบันทึก = จำไว้ในเครื่องนี้เลย (เหมือนแก้ในตั้งค่า) ไม่ส่งขึ้น cloud
+    // docs/grill-2026-11-09-proposer-my-date.md D2
+    if (name === 'proposer_name' || name === 'proposer_position') {
+      (name === 'proposer_name' ? setProposerName : setProposerPosition)(value);
+      try { localStorage.setItem(name, value); } catch {}
+    }
+
     // Format fine amount with thousands separator, e.g. 1000 -> 1,000
     // ตัวอักษรไทยคำนวณใหม่ทุกครั้งที่แก้ตัวเลข (ยังพิมพ์แก้ทับในช่องตัวอักษรเองได้)
     if (name === 'fine_amount') {
